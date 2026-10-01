@@ -50,18 +50,50 @@ services:
       timeout: 3s
       retries: 10
 
+  inventory-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.inventory
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://commerce:commerce@postgres:5432/commerce
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: local-demo-secret-not-for-production
+    depends_on:
+      api:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=2)"
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   qa:
     build:
       context: .
       dockerfile: Dockerfile.qa
     environment:
       BASE_URL: http://api:8000
+      INVENTORY_URL: http://inventory-api:8001
       DATABASE_URL: postgresql://commerce:commerce@postgres:5432/commerce
       JWT_SECRET: local-demo-secret-not-for-production
       ADMIN_EMAIL: admin@example.com
       ADMIN_PASSWORD: LocalAdmin123!
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       api:
+        condition: service_healthy
+      inventory-api:
         condition: service_healthy
     profiles: ["qa"]
 

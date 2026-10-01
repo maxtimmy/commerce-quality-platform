@@ -5,7 +5,7 @@ from sqlalchemy import select
 
 from app.database import SessionLocal
 from app.config import settings
-from app.models import Category, Product, User
+from app.models import Category, InventoryStock, Product, User
 from app.security import hash_password, verify_password
 
 SEED_CATEGORY_ID = uuid.UUID("10000000-0000-0000-0000-000000000001")
@@ -30,6 +30,19 @@ def seed() -> None:
                     price=Decimal("79.90"),
                     category_id=SEED_CATEGORY_ID,
                     is_active=True,
+                )
+            )
+            database.flush()
+        stock = database.scalar(
+            select(InventoryStock).where(InventoryStock.product_id == SEED_PRODUCT_ID)
+        )
+        if stock is None:
+            database.add(
+                InventoryStock(
+                    product_id=SEED_PRODUCT_ID,
+                    available_quantity=25,
+                    reserved_quantity=0,
+                    version=1,
                 )
             )
         admin = database.scalar(select(User).where(User.id == SEED_ADMIN_ID))
