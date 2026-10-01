@@ -6,7 +6,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import Category, Product
+from app.models import Category, Product, User
+from app.security import require_admin
 from app.schemas import CategoryCreate, CategoryOut, CategoryUpdate, ProductCreate, ProductOut, ProductUpdate
 
 router = APIRouter(prefix="/api/v1", tags=["catalog"])
@@ -21,7 +22,11 @@ def _commit(database: Session, conflict_message: str) -> None:
 
 
 @router.post("/categories", response_model=CategoryOut, status_code=status.HTTP_201_CREATED)
-def create_category(payload: CategoryCreate, database: Session = Depends(get_db)) -> Category:
+def create_category(
+    payload: CategoryCreate,
+    database: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+) -> Category:
     category = Category(**payload.model_dump())
     database.add(category)
     _commit(database, "Category name or slug already exists")
@@ -44,7 +49,10 @@ def get_category(category_id: uuid.UUID, database: Session = Depends(get_db)) ->
 
 @router.patch("/categories/{category_id}", response_model=CategoryOut)
 def update_category(
-    category_id: uuid.UUID, payload: CategoryUpdate, database: Session = Depends(get_db)
+    category_id: uuid.UUID,
+    payload: CategoryUpdate,
+    database: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ) -> Category:
     category = database.get(Category, category_id)
     if category is None:
@@ -57,7 +65,11 @@ def update_category(
 
 
 @router.delete("/categories/{category_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_category(category_id: uuid.UUID, database: Session = Depends(get_db)) -> Response:
+def delete_category(
+    category_id: uuid.UUID,
+    database: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+) -> Response:
     category = database.get(Category, category_id)
     if category is None:
         raise HTTPException(status_code=404, detail="Category not found")
@@ -67,7 +79,11 @@ def delete_category(category_id: uuid.UUID, database: Session = Depends(get_db))
 
 
 @router.post("/products", response_model=ProductOut, status_code=status.HTTP_201_CREATED)
-def create_product(payload: ProductCreate, database: Session = Depends(get_db)) -> Product:
+def create_product(
+    payload: ProductCreate,
+    database: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+) -> Product:
     if database.get(Category, payload.category_id) is None:
         raise HTTPException(status_code=404, detail="Category not found")
     product = Product(**payload.model_dump())
@@ -108,7 +124,10 @@ def get_product(product_id: uuid.UUID, database: Session = Depends(get_db)) -> P
 
 @router.patch("/products/{product_id}", response_model=ProductOut)
 def update_product(
-    product_id: uuid.UUID, payload: ProductUpdate, database: Session = Depends(get_db)
+    product_id: uuid.UUID,
+    payload: ProductUpdate,
+    database: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
 ) -> Product:
     product = database.get(Product, product_id)
     if product is None:
@@ -124,7 +143,11 @@ def update_product(
 
 
 @router.delete("/products/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_product(product_id: uuid.UUID, database: Session = Depends(get_db)) -> Response:
+def delete_product(
+    product_id: uuid.UUID,
+    database: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+) -> Response:
     product = database.get(Product, product_id)
     if product is None:
         raise HTTPException(status_code=404, detail="Product not found")

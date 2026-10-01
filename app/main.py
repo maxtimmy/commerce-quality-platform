@@ -3,6 +3,7 @@ from redis import Redis
 from sqlalchemy import text
 
 from app.catalog import router as catalog_router
+from app.auth import router as auth_router
 from app.config import settings
 from app.database import engine
 
@@ -13,6 +14,7 @@ app = FastAPI(
 )
 
 app.include_router(catalog_router)
+app.include_router(auth_router)
 
 
 @app.get("/health", tags=["system"], summary="Process health check")

@@ -4,10 +4,13 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.database import SessionLocal
-from app.models import Category, Product
+from app.config import settings
+from app.models import Category, Product, User
+from app.security import hash_password, verify_password
 
 SEED_CATEGORY_ID = uuid.UUID("10000000-0000-0000-0000-000000000001")
 SEED_PRODUCT_ID = uuid.UUID("20000000-0000-0000-0000-000000000001")
+SEED_ADMIN_ID = uuid.UUID("30000000-0000-0000-0000-000000000001")
 
 
 def seed() -> None:
@@ -29,6 +32,23 @@ def seed() -> None:
                     is_active=True,
                 )
             )
+        admin = database.scalar(select(User).where(User.id == SEED_ADMIN_ID))
+        if admin is None:
+            database.add(
+                User(
+                    id=SEED_ADMIN_ID,
+                    email=settings.admin_email.strip().lower(),
+                    password_hash=hash_password(settings.admin_password),
+                    role="admin",
+                    is_active=True,
+                )
+            )
+        else:
+            admin.email = settings.admin_email.strip().lower()
+            admin.role = "admin"
+            admin.is_active = True
+            if not verify_password(settings.admin_password, admin.password_hash):
+                admin.password_hash = hash_password(settings.admin_password)
         database.commit()
 
 

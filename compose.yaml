@@ -8,6 +8,9 @@ services:
     environment:
       DATABASE_URL: postgresql://commerce:commerce@postgres:5432/commerce
       REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: local-demo-secret-not-for-production
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: LocalAdmin123!
     depends_on:
       postgres:
         condition: service_healthy
@@ -54,6 +57,9 @@ services:
     environment:
       BASE_URL: http://api:8000
       DATABASE_URL: postgresql://commerce:commerce@postgres:5432/commerce
+      JWT_SECRET: local-demo-secret-not-for-production
+      ADMIN_EMAIL: admin@example.com
+      ADMIN_PASSWORD: LocalAdmin123!
     depends_on:
       api:
         condition: service_healthy
