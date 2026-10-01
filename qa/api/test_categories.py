@@ -7,8 +7,12 @@ from qa.conftest import BASE_URL
 
 
 @pytest.mark.regression
-def test_create_category_returns_persisted_representation(category_payload: dict) -> None:
-    response = requests.post(f"{BASE_URL}/api/v1/categories", json=category_payload, timeout=5)
+def test_create_category_returns_persisted_representation(
+    category_payload: dict, admin_headers: dict[str, str]
+) -> None:
+    response = requests.post(
+        f"{BASE_URL}/api/v1/categories", json=category_payload, headers=admin_headers, timeout=5
+    )
 
     assert response.status_code == 201
     body = response.json()
@@ -29,12 +33,16 @@ def test_get_category_by_id(created_category: dict) -> None:
 
 
 @pytest.mark.regression
-def test_list_categories_is_sorted_by_slug(created_category: dict, category_payload: dict) -> None:
+def test_list_categories_is_sorted_by_slug(
+    created_category: dict, category_payload: dict, admin_headers: dict[str, str]
+) -> None:
     second = {
         "name": f"Another {category_payload['name']}",
         "slug": f"test-0-{uuid.uuid4().hex}",
     }
-    assert requests.post(f"{BASE_URL}/api/v1/categories", json=second, timeout=5).status_code == 201
+    assert requests.post(
+        f"{BASE_URL}/api/v1/categories", json=second, headers=admin_headers, timeout=5
+    ).status_code == 201
 
     response = requests.get(f"{BASE_URL}/api/v1/categories", timeout=5)
 
@@ -44,10 +52,13 @@ def test_list_categories_is_sorted_by_slug(created_category: dict, category_payl
 
 
 @pytest.mark.regression
-def test_update_category_changes_only_sent_field(created_category: dict) -> None:
+def test_update_category_changes_only_sent_field(
+    created_category: dict, admin_headers: dict[str, str]
+) -> None:
     response = requests.patch(
         f"{BASE_URL}/api/v1/categories/{created_category['id']}",
         json={"name": "Updated Test Category"},
+        headers=admin_headers,
         timeout=5,
     )
 
@@ -57,9 +68,9 @@ def test_update_category_changes_only_sent_field(created_category: dict) -> None
 
 
 @pytest.mark.regression
-def test_delete_empty_category(created_category: dict) -> None:
+def test_delete_empty_category(created_category: dict, admin_headers: dict[str, str]) -> None:
     response = requests.delete(
-        f"{BASE_URL}/api/v1/categories/{created_category['id']}", timeout=5
+        f"{BASE_URL}/api/v1/categories/{created_category['id']}", headers=admin_headers, timeout=5
     )
 
     assert response.status_code == 204
@@ -69,10 +80,13 @@ def test_delete_empty_category(created_category: dict) -> None:
 
 
 @pytest.mark.regression
-def test_create_category_rejects_duplicate_slug(created_category: dict) -> None:
+def test_create_category_rejects_duplicate_slug(
+    created_category: dict, admin_headers: dict[str, str]
+) -> None:
     response = requests.post(
         f"{BASE_URL}/api/v1/categories",
         json={"name": "Different Test Name", "slug": created_category["slug"]},
+        headers=admin_headers,
         timeout=5,
     )
 
@@ -81,10 +95,11 @@ def test_create_category_rejects_duplicate_slug(created_category: dict) -> None:
 
 
 @pytest.mark.regression
-def test_create_category_rejects_invalid_slug() -> None:
+def test_create_category_rejects_invalid_slug(admin_headers: dict[str, str]) -> None:
     response = requests.post(
         f"{BASE_URL}/api/v1/categories",
         json={"name": "Invalid Test Category", "slug": "Invalid Slug!"},
+        headers=admin_headers,
         timeout=5,
     )
 
@@ -107,9 +122,11 @@ def test_category_path_rejects_malformed_uuid() -> None:
 
 
 @pytest.mark.regression
-def test_delete_category_used_by_product(created_category: dict, created_product: dict) -> None:
+def test_delete_category_used_by_product(
+    created_category: dict, created_product: dict, admin_headers: dict[str, str]
+) -> None:
     response = requests.delete(
-        f"{BASE_URL}/api/v1/categories/{created_category['id']}", timeout=5
+        f"{BASE_URL}/api/v1/categories/{created_category['id']}", headers=admin_headers, timeout=5
     )
 
     assert response.status_code == 409
@@ -117,9 +134,14 @@ def test_delete_category_used_by_product(created_category: dict, created_product
 
 
 @pytest.mark.regression
-def test_update_category_rejects_null_name(created_category: dict) -> None:
+def test_update_category_rejects_null_name(
+    created_category: dict, admin_headers: dict[str, str]
+) -> None:
     response = requests.patch(
-        f"{BASE_URL}/api/v1/categories/{created_category['id']}", json={"name": None}, timeout=5
+        f"{BASE_URL}/api/v1/categories/{created_category['id']}",
+        json={"name": None},
+        headers=admin_headers,
+        timeout=5,
     )
 
     assert response.status_code == 422

@@ -38,10 +38,13 @@ def test_created_product_matches_postgresql(created_product: dict) -> None:
 
 
 @pytest.mark.regression
-def test_product_update_is_persisted_in_postgresql(created_product: dict) -> None:
+def test_product_update_is_persisted_in_postgresql(
+    created_product: dict, admin_headers: dict[str, str]
+) -> None:
     response = requests.patch(
         f"{BASE_URL}/api/v1/products/{created_product['id']}",
         json={"name": "Database Verified Test Product"},
+        headers=admin_headers,
         timeout=5,
     )
     assert response.status_code == 200
