@@ -9,6 +9,7 @@ from redis import Redis
 
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 INVENTORY_URL = os.getenv("INVENTORY_URL", "http://localhost:8001")
+ORDERS_URL = os.getenv("ORDERS_URL", "http://localhost:8002")
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://commerce:commerce@localhost:5432/commerce"
 )
@@ -21,6 +22,10 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "LocalAdmin123!")
 def cleanup_test_data() -> None:
     with psycopg.connect(DATABASE_URL) as connection:
         with connection.cursor() as cursor:
+            cursor.execute(
+                "DELETE FROM orders WHERE product_id IN "
+                "(SELECT id FROM products WHERE sku LIKE 'TEST-%')"
+            )
             cursor.execute(
                 "DELETE FROM reservations WHERE product_id IN "
                 "(SELECT id FROM products WHERE sku LIKE 'TEST-%')"
@@ -142,6 +147,18 @@ def created_reservation(
     response = requests.post(
         f"{INVENTORY_URL}/api/v1/reservations",
         json=reservation_payload,
+        headers=customer_headers | {"Idempotency-Key": f"test-{uuid.uuid4().hex}"},
+        timeout=5,
+    )
+    assert response.status_code == 201
+    return response.json()
+
+
+@pytest.fixture
+def created_order(created_reservation: dict, customer_headers: dict[str, str]) -> dict:
+    response = requests.post(
+        f"{ORDERS_URL}/api/v1/orders",
+        json={"reservation_id": created_reservation["id"]},
         headers=customer_headers | {"Idempotency-Key": f"test-{uuid.uuid4().hex}"},
         timeout=5,
     )
