@@ -200,6 +200,8 @@ def release(
     if reservation.status == "released":
         database.commit()
         return reservation
+    if reservation.status == "committed":
+        raise HTTPException(status_code=409, detail="Committed reservation cannot be released")
 
     database.execute(
         update(InventoryStock)

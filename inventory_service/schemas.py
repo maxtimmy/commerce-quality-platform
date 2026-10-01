@@ -33,3 +33,4 @@ class ReservationOut(BaseModel):
     status: str
     created_at: datetime
     released_at: datetime | None
+    committed_at: datetime | None
