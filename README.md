@@ -1,6 +1,6 @@
 # Commerce Quality Platform
 
-Воспроизводимый QA-стенд минимального интернет-магазина. Завершены Identity/Catalog API и отдельный Inventory API с JWT/RBAC, PostgreSQL, Redis и конкурентным резервированием. Полная тестовая стратегия и подтверждённые результаты дополняются по мере реализации этапов из [PLAN.md](PLAN.md).
+Воспроизводимый QA-стенд минимального интернет-магазина. Реализованы Identity/Catalog, Inventory и Orders API с JWT/RBAC, PostgreSQL, Redis, конкурентным резервированием и атомарным оформлением заказа. Полная тестовая стратегия и подтверждённые результаты дополняются по мере реализации этапов из [PLAN.md](PLAN.md).
 
 ## Быстрый запуск
 
@@ -12,6 +12,8 @@ curl http://localhost:8000/health
 curl http://localhost:8000/ready
 curl http://localhost:8001/health
 curl http://localhost:8001/ready
+curl http://localhost:8002/health
+curl http://localhost:8002/ready
 docker compose --profile qa run --rm --build qa
 ```
 
@@ -25,11 +27,12 @@ docker compose down
 
 - `app/` — Identity/Catalog API и общие модели;
 - `inventory_service/` — отдельный Inventory API;
+- `orders_service/` — отдельный Orders API;
 - `qa/` — независимый QA-код;
-- `compose.yaml` — два API, PostgreSQL, Redis и запускаемый по профилю QA-контейнер;
+- `compose.yaml` — три API, PostgreSQL, Redis и запускаемый по профилю QA-контейнер;
 - `SPEC.md`, `PLAN.md`, `STATUS.md` — требования, этапы и проверенный статус.
 
-OpenAPI после запуска доступен по адресам `http://localhost:8000/openapi.json` и `http://localhost:8001/openapi.json`.
+OpenAPI после запуска доступен по адресам `http://localhost:8000/openapi.json`, `http://localhost:8001/openapi.json` и `http://localhost:8002/openapi.json`.
 
 Полный прогон и отдельные suites:
 
@@ -96,8 +99,28 @@ curl -X POST http://localhost:8001/api/v1/reservations/<RESERVATION_ID>/release 
 
 PostgreSQL является источником истины. Redis хранит idempotency mapping в течение 10 минут; при его недоступности reserve/replay продолжает работать через PostgreSQL, но `/ready` Inventory возвращает 503.
 
-Inventory и Identity/Catalog пока используют общий PostgreSQL-инстанс. Автоматическое истечение и commit резервов не реализованы — это граница следующего этапа Orders.
+Inventory, Orders и Identity/Catalog пока используют общий PostgreSQL-инстанс. Это позволяет оформить резерв одной транзакцией без заявления распределённых транзакций.
+
+## Orders
+
+Создание заказа из активного резерва:
+
+```bash
+curl -X POST http://localhost:8002/api/v1/orders \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
+  -H 'Idempotency-Key: example-order-1' \
+  -H 'Content-Type: application/json' \
+  -d '{"reservation_id":"<RESERVATION_ID>"}'
+
+curl http://localhost:8002/api/v1/orders \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>'
+
+curl -X POST http://localhost:8002/api/v1/orders/<ORDER_ID>/cancel \
+  -H 'Authorization: Bearer <ACCESS_TOKEN>'
+```
+
+Commit переводит резерв в `committed`, убирает количество из зарезервированного остатка и фиксирует цену в заказе. Повтор с тем же idempotency key не создаёт второй заказ. Отмена владельцем или admin идемпотентно возвращает количество в доступный остаток. Платежи, доставка и автоматическое истечение резервов пока не реализованы.
 
 ## Фактический статус
 
-На 2026-10-01 собрано 98 содержательных тестов: 5 smoke и 93 regression. Полный suite прошёл на рабочем стенде и повторно после чистой миграции. Конкурентная проверка подтвердила ровно 5 успешных резервов при остатке 5 и 20 одновременных запросах; это результат локального стенда, не production-показатель. Реальные пользователи, бизнес-эффект и performance/DAST-результаты не заявляются. Подробности — в [STATUS.md](STATUS.md).
+На 2026-10-01 собрано 125 содержательных тестов: 7 smoke и 118 regression. После чистой миграции полный suite дал `125 passed`. Конкурентные проверки подтвердили ровно 5 успешных резервов при остатке 5, единственный commit одного резерва и единственный заказ при повторе idempotency key. Это результаты локального стенда, не production-показатели. Реальные пользователи, бизнес-эффект и performance/DAST-результаты не заявляются. Подробности — в [STATUS.md](STATUS.md).
