@@ -101,3 +101,15 @@ qa/
 - JWT содержит обязательные `sub`, `role`, `iat`, `exp`; отсутствующие, истёкшие и повреждённые токены возвращают 401 с `WWW-Authenticate: Bearer`.
 - Локальный admin создаётся идемпотентным seed. Демонстрационные секрет и пароль из Compose не предназначены для production.
 - Refresh tokens, logout, восстановление пароля, подтверждение email и rate limiting пока не реализованы.
+
+## 9. Реализованный интерфейс Inventory
+
+Inventory работает отдельным FastAPI-процессом на порту `8001`, но пока использует общий PostgreSQL-инстанс.
+
+- `GET /api/v1/inventory/{product_id}` публично возвращает доступное количество.
+- `PUT /api/v1/inventory/{product_id}` позволяет admin установить общее количество с учётом уже зарезервированного.
+- `POST /api/v1/reservations` создаёт атомарный резерв и требует JWT и `Idempotency-Key`.
+- `POST /api/v1/reservations/{id}/release` идемпотентно освобождает резерв владельцем или admin.
+- PostgreSQL — источник истины; условный `UPDATE` не допускает oversell, advisory lock сериализует конкурентные повторы ключа.
+- Redis хранит mapping idempotency key → reservation ID с TTL 10 минут. При недоступном Redis операции используют PostgreSQL fallback, а readiness возвращает 503.
+- Автоматическое истечение и commit резервов пока не реализованы и относятся к этапу Orders.
