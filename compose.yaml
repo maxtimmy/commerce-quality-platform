@@ -53,6 +53,7 @@ services:
       dockerfile: Dockerfile.qa
     environment:
       BASE_URL: http://api:8000
+      DATABASE_URL: postgresql://commerce:commerce@postgres:5432/commerce
     depends_on:
       api:
         condition: service_healthy
