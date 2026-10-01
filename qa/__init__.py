@@ -1,0 +1,1 @@
+"""Independent QA automation package."""
