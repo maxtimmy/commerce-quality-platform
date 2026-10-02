@@ -125,7 +125,7 @@ def create_order(
 @app.get("/api/v1/orders", response_model=list[OrderOut], tags=["orders"])
 def list_orders(
     limit: int = Query(50, ge=1, le=100),
-    offset: int = Query(0, ge=0),
+    offset: int = Query(0, ge=0, le=2_147_483_647),
     database: Session = Depends(get_db),
     principal: Principal = Depends(get_principal),
 ) -> list[Order]:

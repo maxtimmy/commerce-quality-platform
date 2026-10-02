@@ -97,7 +97,7 @@ def create_product(
 def list_products(
     database: Session = Depends(get_db),
     limit: int = Query(default=20, ge=1, le=100),
-    offset: int = Query(default=0, ge=0),
+    offset: int = Query(default=0, ge=0, le=2_147_483_647),
     category_id: uuid.UUID | None = None,
     is_active: bool | None = None,
     search: str | None = Query(default=None, min_length=1, max_length=160),
