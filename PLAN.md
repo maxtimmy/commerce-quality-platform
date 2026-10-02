@@ -44,9 +44,11 @@
 
 ## Этап 6. OpenAPI и contract/property-based testing
 
-**Результат:** актуальная спецификация OpenAPI и Schemathesis suite.
+**Статус:** завершён 2026-10-02.
 
-**Проверка:** schema conformance, property-based негативные данные, документированные исключения без скрытого отключения ошибок.
+**Результат:** актуальные схемы трёх API и Schemathesis suite из 27 проверок по операциям.
+
+**Проверка:** отсутствие 5xx, schema/content-type conformance, property-based негативные данные и документированные исключения без скрытого отключения ошибок.
 
 ## Этап 7. Минимальный UI и Playwright
 

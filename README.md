@@ -40,6 +40,7 @@ OpenAPI после запуска доступен по адресам `http://l
 docker compose --profile qa run --rm qa pytest -q
 docker compose --profile qa run --rm qa pytest -m smoke -q
 docker compose --profile qa run --rm qa pytest -m regression -q
+docker compose --profile qa run --rm qa pytest -m contract -q
 docker compose --profile qa run --rm qa pytest --collect-only -q
 ```
 
@@ -121,6 +122,12 @@ curl -X POST http://localhost:8002/api/v1/orders/<ORDER_ID>/cancel \
 
 Commit переводит резерв в `committed`, убирает количество из зарезервированного остатка и фиксирует цену в заказе. Повтор с тем же idempotency key не создаёт второй заказ. Отмена владельцем или admin идемпотентно возвращает количество в доступный остаток. Платежи, доставка и автоматическое истечение резервов пока не реализованы.
 
+## OpenAPI contract testing
+
+Schemathesis 4.10.2 загружает OpenAPI Identity/Catalog, Inventory и Orders. Suite содержит 27 собранных проверок — по одной на операцию; каждая выполняет до 10 детерминированных Hypothesis-примеров. GET проверяются positive-данными, изменяющие операции — negative-данными. Проверяются отсутствие 5xx, Content-Type, документированные response schemas и отклонение невалидных данных.
+
+Неизвестные query-параметры разрешены генератору, поскольку текущий FastAPI-стенд их игнорирует. Проверка `status_code_conformance` пока не включена: не все доменные 401/403/404/409 перечислены в OpenAPI. Ограничения явные; server-error и response-schema проверки не отключены.
+
 ## Фактический статус
 
-На 2026-10-01 собрано 125 содержательных тестов: 7 smoke и 118 regression. После чистой миграции полный suite дал `125 passed`. Конкурентные проверки подтвердили ровно 5 успешных резервов при остатке 5, единственный commit одного резерва и единственный заказ при повторе idempotency key. Это результаты локального стенда, не production-показатели. Реальные пользователи, бизнес-эффект и performance/DAST-результаты не заявляются. Подробности — в [STATUS.md](STATUS.md).
+На 2026-10-02 собрано 154 содержательных теста: 7 smoke, 120 regression и 27 contract. Два последовательных полных прогона дали `154 passed`. Schemathesis обнаружил и помог исправить 500 при слишком большом `offset`; регрессионные проверки добавлены для Catalog и Orders. Конкурентные проверки подтвердили ровно 5 успешных резервов при остатке 5, единственный commit одного резерва и единственный заказ при повторе idempotency key. Это результаты локального стенда, не production-показатели. Реальные пользователи, бизнес-эффект и performance/DAST-результаты не заявляются. Подробности — в [STATUS.md](STATUS.md).
