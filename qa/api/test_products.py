@@ -177,6 +177,15 @@ def test_list_products_rejects_limit_above_maximum() -> None:
 
 
 @pytest.mark.regression
+def test_list_products_rejects_offset_above_postgresql_limit() -> None:
+    response = requests.get(
+        f"{BASE_URL}/api/v1/products", params={"offset": 2_147_483_648}, timeout=5
+    )
+
+    assert response.status_code == 422
+
+
+@pytest.mark.regression
 def test_update_product_rejects_unknown_category(
     created_product: dict, admin_headers: dict[str, str]
 ) -> None:

@@ -276,3 +276,17 @@ def test_unknown_order_returns_404(customer_headers: dict[str, str]) -> None:
     )
 
     assert response.status_code == 404
+
+
+@pytest.mark.regression
+def test_order_list_rejects_offset_above_postgresql_limit(
+    customer_headers: dict[str, str]
+) -> None:
+    response = requests.get(
+        f"{ORDERS_URL}/api/v1/orders",
+        params={"offset": 2_147_483_648},
+        headers=customer_headers,
+        timeout=5,
+    )
+
+    assert response.status_code == 422
