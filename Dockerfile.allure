@@ -1,0 +1,21 @@
+FROM eclipse-temurin:21-jre-noble
+
+ARG ALLURE_VERSION=2.46.1
+ARG ALLURE_SHA256=37428164f310c8d137cfdd2c3a25d049b233261ddab13e1bd4dfd7627b5cbf8d
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends ca-certificates curl \
+    && curl --fail --location --silent --show-error \
+      "https://github.com/allure-framework/allure2/releases/download/${ALLURE_VERSION}/allure-${ALLURE_VERSION}.tgz" \
+      --output /tmp/allure.tgz \
+    && echo "${ALLURE_SHA256}  /tmp/allure.tgz" | sha256sum --check --strict \
+    && tar --extract --gzip --file /tmp/allure.tgz --directory /opt \
+    && ln --symbolic "/opt/allure-${ALLURE_VERSION}/bin/allure" /usr/local/bin/allure \
+    && rm --force /tmp/allure.tgz \
+    && rm --recursive --force /var/lib/apt/lists/*
+
+COPY scripts/allure-entrypoint.sh /usr/local/bin/allure-entrypoint
+RUN chmod 0755 /usr/local/bin/allure-entrypoint
+
+ENTRYPOINT ["allure-entrypoint"]
+CMD ["generate", "/allure-results", "--output", "/allure-report", "--clean"]

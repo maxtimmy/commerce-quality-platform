@@ -152,7 +152,17 @@ services:
     ipc: host
     volumes:
       - ./test-results:/workspace/test-results
+      - ./allure-results:/workspace/allure-results
     profiles: ["qa"]
+
+  allure-report:
+    build:
+      context: .
+      dockerfile: Dockerfile.allure
+    volumes:
+      - ./allure-results:/allure-results:ro
+      - ./allure-report:/allure-report
+    profiles: ["report"]
 
 volumes:
   postgres_data:

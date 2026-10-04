@@ -6,3 +6,4 @@ redis==5.2.1
 schemathesis==4.10.2
 playwright==1.63.0
 pytest-playwright==0.9.0
+allure-pytest==2.16.2

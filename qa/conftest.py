@@ -1,7 +1,10 @@
 import os
 import uuid
 from collections.abc import Generator
+from importlib.metadata import version
+from pathlib import Path
 
+import allure
 import psycopg
 import pytest
 import requests
@@ -18,6 +21,44 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 JWT_SECRET = os.getenv("JWT_SECRET", "local-demo-secret-not-for-production")
 ADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "admin@example.com")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "LocalAdmin123!")
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    results_dir = getattr(session.config.option, "allure_report_dir", None)
+    if not results_dir:
+        return
+
+    browsers = session.config.getoption("browser", default=[])
+    browser = ",".join(browsers) if browsers else "not-applicable"
+    properties = {
+        "run": os.getenv("ALLURE_RUN_NAME", "local"),
+        "browser": browser,
+        "python": os.sys.version.split()[0],
+        "playwright": version("playwright"),
+        "environment": "GitHub Actions" if os.getenv("GITHUB_ACTIONS") else "local Docker Compose",
+    }
+    path = Path(results_dir)
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "environment.properties").write_text(
+        "".join(f"{key}={value}\n" for key, value in properties.items()),
+        encoding="utf-8",
+    )
+
+
+@pytest.fixture(autouse=True)
+def allure_hierarchy(request: pytest.FixtureRequest) -> None:
+    marker = next(
+        (name for name in ("smoke", "regression", "contract", "ui") if request.node.get_closest_marker(name)),
+        "unclassified",
+    )
+    relative_path = Path(str(request.node.path))
+    subsystem = relative_path.parent.name.replace("_", " ").title()
+    allure.dynamic.parent_suite("Commerce Quality Platform")
+    allure.dynamic.suite(marker)
+    allure.dynamic.sub_suite(subsystem)
+    if "[" in request.node.name and request.node.name.endswith("]"):
+        case_name = request.node.name.rsplit("[", maxsplit=1)[1][:-1]
+        allure.dynamic.parameter("case", case_name)
 
 
 def cleanup_test_data() -> None:

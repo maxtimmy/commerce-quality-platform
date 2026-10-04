@@ -3,16 +3,6 @@ from collections.abc import Generator
 import pytest
 from playwright.sync_api import Page
 
-from qa.conftest import WEB_URL
-
-
-@pytest.fixture(scope="session")
-def browser_type_launch_args(browser_type_launch_args: dict) -> dict:
-    args = list(browser_type_launch_args.get("args", []))
-    args.append(f"--unsafely-treat-insecure-origin-as-secure={WEB_URL}")
-    return browser_type_launch_args | {"args": args}
-
-
 @pytest.fixture
 def ui_page(page: Page) -> Generator[Page, None, None]:
     errors: list[str] = []
