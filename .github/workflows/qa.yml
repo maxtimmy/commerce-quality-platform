@@ -1,0 +1,169 @@
+name: QA suites
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Validate Compose
+        run: docker compose config --quiet
+      - name: Validate workflow
+        run: docker run --rm -v "$PWD:/repo" -w /repo rhysd/actionlint:1.7.12
+
+  suite:
+    name: ${{ matrix.suite }} suite
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [smoke, regression, contract]
+    env:
+      COMPOSE_PROJECT_NAME: cqp-${{ github.run_id }}-${{ matrix.suite }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Validate Compose
+        run: docker compose config --quiet
+      - name: Start application
+        run: docker compose up --detach --build --wait
+      - name: Run ${{ matrix.suite }} tests
+        run: >-
+          docker compose run --rm --build
+          -e GITHUB_ACTIONS=true
+          -e ALLURE_RUN_NAME=${{ matrix.suite }}
+          qa pytest -q -m ${{ matrix.suite }}
+          --alluredir=allure-results
+      - name: Capture service logs
+        if: ${{ always() }}
+        run: |
+          mkdir -p test-results
+          docker compose logs --no-color > test-results/compose.log
+      - name: Upload Allure results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: allure-${{ matrix.suite }}
+          path: allure-results/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: diagnostics-${{ matrix.suite }}
+          path: test-results/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Stop application
+        if: ${{ always() }}
+        run: docker compose down --volumes --remove-orphans
+
+  ui:
+    name: UI / ${{ matrix.browser }}
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    env:
+      COMPOSE_PROJECT_NAME: cqp-${{ github.run_id }}-ui-${{ matrix.browser }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Validate Compose
+        run: docker compose config --quiet
+      - name: Start application
+        run: docker compose up --detach --build --wait
+      - name: Run UI tests in ${{ matrix.browser }}
+        run: >-
+          docker compose run --rm --build
+          -e GITHUB_ACTIONS=true
+          -e ALLURE_RUN_NAME=ui-${{ matrix.browser }}
+          qa pytest -q -m ui
+          --browser ${{ matrix.browser }}
+          --alluredir=allure-results
+          --tracing retain-on-failure
+          --video retain-on-failure
+          --screenshot only-on-failure
+          --output test-results/${{ matrix.browser }}
+      - name: Capture service logs
+        if: ${{ always() }}
+        run: |
+          mkdir -p test-results
+          docker compose logs --no-color > test-results/compose.log
+      - name: Upload Allure results
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: allure-ui-${{ matrix.browser }}
+          path: allure-results/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Upload UI diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: diagnostics-ui-${{ matrix.browser }}
+          path: test-results/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Stop application
+        if: ${{ always() }}
+        run: docker compose down --volumes --remove-orphans
+
+  report:
+    name: Combined Allure report
+    if: ${{ always() && !cancelled() }}
+    needs: [suite, ui]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Download Allure results
+        uses: actions/download-artifact@v8.0.1
+        with:
+          pattern: allure-*
+          path: merged-results
+          merge-multiple: true
+      - name: Record combined environment
+        run: |
+          printf '%s\n' \
+            'run=GitHub Actions combined report' \
+            'browsers=chromium, firefox, webkit' \
+            'playwright=1.63.0' \
+            'suites=smoke, regression, contract, ui' \
+            > merged-results/environment.properties
+      - name: Generate HTML report
+        run: |
+          docker build --file Dockerfile.allure --tag commerce-allure:2.46.1 .
+          mkdir -p allure-report
+          docker run --rm \
+            -v "$PWD/merged-results:/allure-results:ro" \
+            -v "$PWD/allure-report:/allure-report" \
+            commerce-allure:2.46.1 \
+            generate /allure-results --output /allure-report --clean
+      - name: Upload HTML report
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: allure-report
+          path: allure-report/
+          if-no-files-found: error
+          retention-days: 14
