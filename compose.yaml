@@ -105,6 +105,26 @@ services:
       retries: 10
       start_period: 5s
 
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "8080:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+      inventory-api:
+        condition: service_healthy
+      orders-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
   qa:
     build:
       context: .
@@ -113,6 +133,7 @@ services:
       BASE_URL: http://api:8000
       INVENTORY_URL: http://inventory-api:8001
       ORDERS_URL: http://orders-api:8002
+      WEB_URL: http://web:8080
       DATABASE_URL: postgresql://commerce:commerce@postgres:5432/commerce
       JWT_SECRET: local-demo-secret-not-for-production
       ADMIN_EMAIL: admin@example.com
@@ -125,6 +146,12 @@ services:
         condition: service_healthy
       orders-api:
         condition: service_healthy
+      web:
+        condition: service_healthy
+    init: true
+    ipc: host
+    volumes:
+      - ./test-results:/workspace/test-results
     profiles: ["qa"]
 
 volumes:

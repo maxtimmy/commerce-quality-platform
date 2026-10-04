@@ -4,3 +4,4 @@ __pycache__
 *.pyc
 allure-results
 allure-report
+test-results

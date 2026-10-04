@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Демонстрационный интерфейс Commerce Quality Platform">
+    <title>Commerce Quality Platform</title>
+    <link rel="stylesheet" href="/styles.css">
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#catalog" aria-label="Commerce Quality Platform — к каталогу">
+        <span class="brand-mark" aria-hidden="true">CQ</span>
+        <span><strong>Commerce</strong><small>Quality Platform</small></span>
+      </a>
+      <div class="session" data-testid="session-panel">
+        <span id="user-email" data-testid="user-email" hidden></span>
+        <button id="logout-button" class="button button-quiet" data-testid="logout" hidden>Выйти</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <p class="eyebrow">Локальный QA-стенд</p>
+          <h1 id="hero-title">Покупка, которую можно проверить</h1>
+          <p class="hero-copy">Каталог, конкурентные остатки и оформление заказа объединены в один прозрачный пользовательский путь.</p>
+        </div>
+
+        <form id="login-form" class="login-card" data-testid="login-form">
+          <div class="login-heading">
+            <h2>Войти</h2>
+            <span class="status-dot" aria-hidden="true"></span>
+          </div>
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="username" required data-testid="email">
+          <label for="password">Пароль</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required data-testid="password">
+          <button class="button button-primary" type="submit" data-testid="login-submit">Войти в аккаунт</button>
+          <p id="login-error" class="form-error" role="alert" data-testid="login-error" hidden></p>
+        </form>
+      </section>
+
+      <section id="catalog" class="content-section" aria-labelledby="catalog-title">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">Каталог</p>
+            <h2 id="catalog-title">Доступные товары</h2>
+          </div>
+          <button id="refresh-catalog" class="button button-quiet" type="button" data-testid="refresh-catalog">Обновить</button>
+        </div>
+        <p id="catalog-status" class="muted" role="status" data-testid="catalog-status">Загружаем каталог…</p>
+        <div id="catalog-grid" class="product-grid" data-testid="catalog-grid"></div>
+      </section>
+
+      <section id="orders-section" class="content-section orders-section" aria-labelledby="orders-title" hidden>
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">История</p>
+            <h2 id="orders-title">Мои заказы</h2>
+          </div>
+        </div>
+        <p id="order-feedback" class="feedback" role="alert" data-testid="order-feedback" hidden></p>
+        <p id="orders-status" class="muted" role="status" data-testid="orders-status"></p>
+        <div id="orders-list" class="orders-list" data-testid="orders-list"></div>
+      </section>
+    </main>
+
+    <footer>
+      <span>Учебный стенд</span>
+      <span>FastAPI · PostgreSQL · Redis · Playwright</span>
+    </footer>
+  </body>
+</html>
