@@ -1,6 +1,6 @@
 # Commerce Quality Platform
 
-Воспроизводимый QA-стенд минимального интернет-магазина. Реализованы Identity/Catalog, Inventory и Orders API с JWT/RBAC, PostgreSQL, Redis, конкурентным резервированием, атомарным оформлением заказа и минимальным Web UI с Chromium E2E-тестами. Полная тестовая стратегия и подтверждённые результаты дополняются по мере реализации этапов из [PLAN.md](PLAN.md).
+Воспроизводимый QA-стенд минимального интернет-магазина. Реализованы Identity/Catalog, Inventory и Orders API с JWT/RBAC, PostgreSQL, Redis, конкурентным резервированием, атомарным оформлением заказа, Web UI, кросс-браузерными E2E-тестами, Allure и параллельным GitHub Actions workflow. Полная тестовая стратегия и подтверждённые результаты дополняются по мере реализации этапов из [PLAN.md](PLAN.md).
 
 ## Быстрый запуск
 
@@ -50,6 +50,17 @@ docker compose --profile qa run --rm qa pytest -m ui -q --browser chromium \
   --screenshot only-on-failure --output test-results
 docker compose --profile qa run --rm qa pytest --collect-only -q --browser chromium
 ```
+
+Allure results и локальный HTML-отчёт:
+
+```bash
+docker compose --profile qa run --rm qa pytest -m smoke -q \
+  --alluredir=allure-results/smoke
+docker compose --profile report run --rm --build allure-report \
+  generate /allure-results --output /allure-report --clean
+```
+
+Готовый отчёт находится в `allure-report/index.html`. Генератор использует закреплённый Allure Report 2.46.1 и Java внутри Docker; установка на хост не требуется. `allure-results/`, `allure-report/` и `test-results/` не коммитятся.
 
 Каталог доступен под `/api/v1/categories` и `/api/v1/products`. Чтение публичное; создание, изменение и удаление требуют роль `admin`.
 
@@ -133,7 +144,13 @@ Commit переводит резерв в `committed`, убирает колич
 
 Nginx раздаёт адаптивный статический UI на порту `8080` и проксирует API в рамках одного origin: Identity/Catalog через `/gateway/core`, Inventory через `/gateway/inventory`, Orders через `/gateway/orders`. CORS в API не требуется. Интерфейс поддерживает вход, публичный каталог с остатками, reserve → order, список заказов и logout. JWT хранится только в `sessionStorage`; при logout и ответе 401 он удаляется. При ошибке создания заказа после успешного резерва UI пытается освободить резерв.
 
-QA-образ основан на официальном Playwright Python `v1.63.0-noble`; Python-пакет `playwright==1.63.0` совпадает с версией образа. UI-suite использует только Chromium. Desktop/mobile viewport, клавиатурный вход и отсутствие необработанных JavaScript-ошибок проверяются автоматически. Screenshot, video и trace сохраняются в игнорируемый каталог `test-results/` только при падениях. Firefox/WebKit и браузерная матрица оставлены для этапа CI.
+QA-образ основан на официальном Playwright Python `v1.63.0-noble`; Python-пакет `playwright==1.63.0` совпадает с версией образа. Один UI-suite выполняется в Chromium, Firefox и WebKit. Desktop/mobile viewport, клавиатурный вход и отсутствие необработанных JavaScript-ошибок проверяются автоматически. Screenshot, video и trace сохраняются в игнорируемый каталог `test-results/` только при падениях.
+
+## Параллельный CI
+
+Workflow `.github/workflows/qa.yml` запускается для push/pull request в `main` и вручную. Smoke, regression, contract и три UI-browser jobs используют отдельные GitHub-hosted runners и изолированные Compose-проекты. Каждый job сохраняет raw Allure results, а итоговый job собирает единый HTML artifact на 14 дней. GitHub Pages, deployment и secrets не используются.
+
+Workflow проверен локально `actionlint 1.7.12`; фактический запуск GitHub Actions пока не выполнялся, поскольку у локального репозитория нет remote и проект не публиковался.
 
 ## OpenAPI contract testing
 
@@ -143,4 +160,4 @@ Schemathesis 4.10.2 загружает OpenAPI Identity/Catalog, Inventory и Or
 
 ## Фактический статус
 
-На 2026-10-04 собрано 164 содержательных теста: 7 smoke, 120 regression, 27 contract и 10 UI. Два последовательных полных прогона дали `164 passed`; UI-suite отдельно дал `10 passed`. Schemathesis обнаружил и помог исправить 500 при слишком большом `offset`; регрессионные проверки добавлены для Catalog и Orders. Конкурентные проверки подтвердили ровно 5 успешных резервов при остатке 5, единственный commit одного резерва и единственный заказ при повторе idempotency key. Это результаты локального стенда, не production-показатели. Реальные пользователи, бизнес-эффект и performance/DAST-результаты не заявляются. Подробности — в [STATUS.md](STATUS.md).
+На 2026-10-04 собрано 164 содержательных теста: 7 smoke, 120 regression, 27 contract и 10 UI. Два последовательных полных Chromium-прогона дали `164 passed`; UI-suite отдельно дал по `10 passed` в Chromium, Firefox и WebKit. Чистый Allure-отчёт содержит 184 успешных выполнения с учётом трёх браузеров — это не 184 разных теста. Schemathesis обнаружил и помог исправить 500 при слишком большом `offset` и NUL в OAuth2 username. Это результаты локального стенда, не production-показатели. Реальные пользователи, бизнес-эффект и performance/DAST-результаты не заявляются. Подробности — в [STATUS.md](STATUS.md).

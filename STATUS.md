@@ -4,7 +4,7 @@
 
 ## Текущий этап
 
-Этап 7 — минимальный Web UI и Playwright: завершён.
+Этап 8 — Allure и параллельный GitHub Actions CI: локальная реализация завершена; внешний CI run не выполнялся.
 
 ## Готово
 
@@ -40,6 +40,11 @@
 - JWT хранится в `sessionStorage`; reserve/order используют независимые idempotency keys, а ошибка order запускает best-effort release.
 - QA-образ переведён на Playwright Python `v1.63.0-noble` с совпадающим пакетом `playwright==1.63.0`.
 - Добавлены 10 независимых Chromium UI-тестов, включая desktop/mobile, клавиатуру, stale stock, компенсацию и повторное действие.
+- Добавлен `allure-pytest==2.16.2`, иерархия suites и environment metadata.
+- Добавлен Docker-генератор Allure Report 2.46.1 с проверкой SHA-256 загружаемого дистрибутива.
+- UI-suite проверен в Chromium, Firefox и WebKit без дублирования исходных тестов.
+- Добавлен GitHub Actions workflow: smoke/regression/contract jobs, UI browser matrix и объединённый HTML artifact.
+- Contract suite обнаружил 500 для OAuth2 username с NUL; login теперь безопасно возвращает общий 401, сценарий закреплён существующей regression-проверкой.
 
 ## Проверено
 
@@ -96,10 +101,17 @@
 - Страница и `/health` доступны с хоста и из QA-контейнера; desktop 1440×1000 и mobile 390×844 проверены визуально.
 - API, Inventory, Orders, Web, PostgreSQL и Redis находятся в `healthy`.
 - После всех прогонов осталось 0 тестовых пользователей, товаров, резервов, заказов и 0 Redis-ключей.
+- Два последовательных полных Chromium-прогона этапа 8 — по `164 passed`.
+- UI matrix локально — Chromium `10 passed`, Firefox `10 passed`, WebKit `10 passed`.
+- Отдельные Allure-прогоны — smoke `7 passed`, regression `120 passed`, contract `27 passed`.
+- Чистый объединённый Allure report — 184 выполнений, `184 passed`, четыре suites; collection остаётся `164 tests`.
+- Контролируемое UI-падение появилось в Allure и создало screenshot PNG, video WebM и trace ZIP; временный тест удалён.
+- `actionlint 1.7.12`, `docker compose config --quiet` и `git diff --check` прошли.
+- HTML-отчёт успешно сгенерирован, содержит `index.html` и отдан локальным Nginx с HTTP 200.
 
 ## Следующий этап
 
-Этап 8: Allure и параллельный матричный GitHub Actions с отдельными suites и браузерами.
+Этап 9: нагрузочные сценарии Locust и базовый DAST-проход OWASP ZAP.
 
 ## Ограничения и честные метрики
 
@@ -112,5 +124,7 @@
 - Нагрузочные и DAST-результаты ещё не получены.
 - OpenAPI пока не перечисляет все доменные 401/403/404/409 responses, поэтому Schemathesis `status_code_conformance` явно отложен до расширения error-контрактов.
 - Неизвестные query-параметры FastAPI игнорирует; contract generation считает их допустимыми и продолжает проверять объявленные типы и границы.
-- UI проверен только в Chromium. Firefox/WebKit и браузерная CI-матрица относятся к этапу 8.
+- UI локально проверен в Chromium, Firefox и WebKit.
 - UI — учебный QA-стенд без frontend-фреймворка, production-аутентификации и заявлений о реальной эксплуатации.
+- GitHub Actions workflow статически проверен, но фактически не запускался: у репозитория нет remote, публикация не выполнялась.
+- 184 строки Allure — это выполнения 164 тестов с повтором 10 UI-сценариев в трёх браузерах, а не искусственно увеличенное число тестов.

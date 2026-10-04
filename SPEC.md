@@ -144,5 +144,14 @@ Orders работает отдельным FastAPI-процессом на по�
 - JWT хранится только в `sessionStorage` и удаляется при logout или 401. Reserve и order используют независимые idempotency keys.
 - Если order не создан после успешного reserve, UI выполняет best-effort release и показывает безопасную ошибку.
 - Динамический API-текст выводится через `textContent`; формы имеют labels, ошибки — `role="alert"`, тесты используют стабильные `data-testid`.
-- Chromium Playwright suite проверяет desktop/mobile viewport, клавиатурный вход, критический путь, ошибки остатка, компенсацию и защиту от двойного UI-действия.
-- Firefox/WebKit, frontend-фреймворк и отдельная бизнес-логика UI намеренно не входят в текущий этап.
+- Playwright suite выполняется в Chromium, Firefox и WebKit и проверяет desktop/mobile viewport, клавиатурный вход, критический путь, ошибки остатка, компенсацию и защиту от двойного UI-действия.
+- Frontend-фреймворк и отдельная бизнес-логика UI намеренно не используются.
+
+## 13. Реализованные отчёты и CI
+
+- `allure-pytest` формирует результаты с иерархией проект → suite → подсистема и environment metadata.
+- Docker-генератор на Allure Report 2.46.1 объединяет раздельные результаты и создаёт статический HTML без установки Java/Allure на хост.
+- GitHub Actions разделяет smoke, regression и contract на независимые jobs; UI использует матрицу Chromium/Firefox/WebKit.
+- Каждый job работает с отдельным Compose-проектом и БД, сохраняет результаты и очищает volumes даже после ошибки.
+- Итоговый CI job объединяет raw results и сохраняет HTML report как artifact на 14 дней; Pages и deployment не используются.
+- Локально workflow проверяется actionlint. Успешный внешний CI run нельзя заявлять до публикации репозитория.
