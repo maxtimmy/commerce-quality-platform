@@ -128,14 +128,15 @@ def test_login_rejects_wrong_password_with_generic_error(
 
 @pytest.mark.regression
 def test_login_unknown_email_uses_same_generic_error() -> None:
-    response = requests.post(
-        f"{BASE_URL}/api/v1/auth/token",
-        data={"username": f"test-{uuid.uuid4().hex}@example.com", "password": "WrongPassword!"},
-        timeout=5,
-    )
+    for username in (f"test-{uuid.uuid4().hex}@example.com", "invalid\x00email@example.com"):
+        response = requests.post(
+            f"{BASE_URL}/api/v1/auth/token",
+            data={"username": username, "password": "WrongPassword!"},
+            timeout=5,
+        )
 
-    assert response.status_code == 401
-    assert response.json()["detail"] == "Invalid email or password"
+        assert response.status_code == 401
+        assert response.json()["detail"] == "Invalid email or password"
 
 
 @pytest.mark.regression

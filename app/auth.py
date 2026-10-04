@@ -34,7 +34,9 @@ def issue_token(
     form: OAuth2PasswordRequestForm = Depends(), database: Session = Depends(get_db)
 ) -> TokenOut:
     email = form.username.strip().lower()
-    user = database.scalar(select(User).where(User.email == email))
+    user = None
+    if "\x00" not in email:
+        user = database.scalar(select(User).where(User.email == email))
     if user is None or not user.is_active or not verify_password(form.password, user.password_hash):
         raise HTTPException(
             status_code=401,
