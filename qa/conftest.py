@@ -10,6 +10,7 @@ from redis import Redis
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 INVENTORY_URL = os.getenv("INVENTORY_URL", "http://localhost:8001")
 ORDERS_URL = os.getenv("ORDERS_URL", "http://localhost:8002")
+WEB_URL = os.getenv("WEB_URL", "http://localhost:8080")
 DATABASE_URL = os.getenv(
     "DATABASE_URL", "postgresql://commerce:commerce@localhost:5432/commerce"
 )
