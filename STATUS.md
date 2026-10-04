@@ -1,10 +1,10 @@
 # Commerce Quality Platform — статус
 
-Обновлено: 2026-10-02
+Обновлено: 2026-10-04
 
 ## Текущий этап
 
-Этап 6 — OpenAPI и contract/property-based testing: завершён.
+Этап 7 — минимальный Web UI и Playwright: завершён.
 
 ## Готово
 
@@ -34,6 +34,12 @@
 - Добавлен отдельный contract suite на Schemathesis для 27 операций трёх OpenAPI-схем.
 - GET проверяются positive property-based примерами, изменяющие операции — negative примерами без загрязнения данными.
 - Schemathesis обнаружил 500 на слишком большом `offset`; верхняя граница добавлена в Catalog и Orders и закреплена регрессионными тестами.
+- Добавлен отдельный `web`-контейнер с Nginx, healthcheck и статическим адаптивным UI на порту 8080.
+- Nginx проксирует три API через единый origin; CORS в API не добавлялся.
+- UI реализует публичный каталог, вход/logout, reserve → order, список заказов и безопасное отображение ошибок.
+- JWT хранится в `sessionStorage`; reserve/order используют независимые idempotency keys, а ошибка order запускает best-effort release.
+- QA-образ переведён на Playwright Python `v1.63.0-noble` с совпадающим пакетом `playwright==1.63.0`.
+- Добавлены 10 независимых Chromium UI-тестов, включая desktop/mobile, клавиатуру, stale stock, компенсацию и повторное действие.
 
 ## Проверено
 
@@ -81,15 +87,24 @@
 - Contract suite — `27 passed, 127 deselected`.
 - Сбор тестов — `154 tests collected`; целевой порог ≥150 достигнут фактическим collection.
 - После прогонов осталось 0 тестовых заказов, резервов, товаров, пользователей и Redis idempotency keys; пять сервисов healthy.
+- UI suite — `10 passed, 154 deselected`.
+- Два последовательных полных прогона этапа 7 — по `164 passed`.
+- Smoke suite — `7 passed, 157 deselected`.
+- Regression suite — `120 passed, 44 deselected`.
+- Contract suite — `27 passed, 137 deselected`.
+- Сбор тестов — `164 tests collected`: 154 API/contract/integration и 10 UI-проверок.
+- Страница и `/health` доступны с хоста и из QA-контейнера; desktop 1440×1000 и mobile 390×844 проверены визуально.
+- API, Inventory, Orders, Web, PostgreSQL и Redis находятся в `healthy`.
+- После всех прогонов осталось 0 тестовых пользователей, товаров, резервов, заказов и 0 Redis-ключей.
 
 ## Следующий этап
 
-Этап 7: минимальный Web UI и критический пользовательский путь на Playwright.
+Этап 8: Allure и параллельный матричный GitHub Actions с отдельными suites и браузерами.
 
 ## Ограничения и честные метрики
 
 - Подтверждённых production-показателей и реальных пользователей нет.
-- На текущем этапе собрано 154 содержательных автопроверки; целевой минимум ≥150 достигнут.
+- На текущем этапе собрано 164 содержательных автопроверки; целевой минимум ≥150 достигнут.
 - Compose содержит только локальные демонстрационные JWT/admin credentials; они не предназначены для production.
 - Refresh tokens, logout, восстановление пароля, подтверждение email и rate limiting не реализованы.
 - Inventory и Identity/Catalog пока используют общий PostgreSQL-инстанс; отдельные БД не заявляются.
@@ -97,3 +112,5 @@
 - Нагрузочные и DAST-результаты ещё не получены.
 - OpenAPI пока не перечисляет все доменные 401/403/404/409 responses, поэтому Schemathesis `status_code_conformance` явно отложен до расширения error-контрактов.
 - Неизвестные query-параметры FastAPI игнорирует; contract generation считает их допустимыми и продолжает проверять объявленные типы и границы.
+- UI проверен только в Chromium. Firefox/WebKit и браузерная CI-матрица относятся к этапу 8.
+- UI — учебный QA-стенд без frontend-фреймворка, production-аутентификации и заявлений о реальной эксплуатации.

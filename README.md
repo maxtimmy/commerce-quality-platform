@@ -1,6 +1,6 @@
 # Commerce Quality Platform
 
-Воспроизводимый QA-стенд минимального интернет-магазина. Реализованы Identity/Catalog, Inventory и Orders API с JWT/RBAC, PostgreSQL, Redis, конкурентным резервированием и атомарным оформлением заказа. Полная тестовая стратегия и подтверждённые результаты дополняются по мере реализации этапов из [PLAN.md](PLAN.md).
+Воспроизводимый QA-стенд минимального интернет-магазина. Реализованы Identity/Catalog, Inventory и Orders API с JWT/RBAC, PostgreSQL, Redis, конкурентным резервированием, атомарным оформлением заказа и минимальным Web UI с Chromium E2E-тестами. Полная тестовая стратегия и подтверждённые результаты дополняются по мере реализации этапов из [PLAN.md](PLAN.md).
 
 ## Быстрый запуск
 
@@ -14,8 +14,11 @@ curl http://localhost:8001/health
 curl http://localhost:8001/ready
 curl http://localhost:8002/health
 curl http://localhost:8002/ready
+curl http://localhost:8080/health
 docker compose --profile qa run --rm --build qa
 ```
+
+Web UI после запуска доступен по адресу `http://localhost:8080`.
 
 Остановка без удаления данных PostgreSQL:
 
@@ -28,8 +31,9 @@ docker compose down
 - `app/` — Identity/Catalog API и общие модели;
 - `inventory_service/` — отдельный Inventory API;
 - `orders_service/` — отдельный Orders API;
+- `web/` — статический HTML/CSS/JavaScript UI и Nginx reverse proxy;
 - `qa/` — независимый QA-код;
-- `compose.yaml` — три API, PostgreSQL, Redis и запускаемый по профилю QA-контейнер;
+- `compose.yaml` — три API, PostgreSQL, Redis, Web UI и запускаемый по профилю QA-контейнер;
 - `SPEC.md`, `PLAN.md`, `STATUS.md` — требования, этапы и проверенный статус.
 
 OpenAPI после запуска доступен по адресам `http://localhost:8000/openapi.json`, `http://localhost:8001/openapi.json` и `http://localhost:8002/openapi.json`.
@@ -37,11 +41,14 @@ OpenAPI после запуска доступен по адресам `http://l
 Полный прогон и отдельные suites:
 
 ```bash
-docker compose --profile qa run --rm qa pytest -q
-docker compose --profile qa run --rm qa pytest -m smoke -q
-docker compose --profile qa run --rm qa pytest -m regression -q
-docker compose --profile qa run --rm qa pytest -m contract -q
-docker compose --profile qa run --rm qa pytest --collect-only -q
+docker compose --profile qa run --rm qa pytest -q --browser chromium
+docker compose --profile qa run --rm qa pytest -m smoke -q --browser chromium
+docker compose --profile qa run --rm qa pytest -m regression -q --browser chromium
+docker compose --profile qa run --rm qa pytest -m contract -q --browser chromium
+docker compose --profile qa run --rm qa pytest -m ui -q --browser chromium \
+  --tracing retain-on-failure --video retain-on-failure \
+  --screenshot only-on-failure --output test-results
+docker compose --profile qa run --rm qa pytest --collect-only -q --browser chromium
 ```
 
 Каталог доступен под `/api/v1/categories` и `/api/v1/products`. Чтение публичное; создание, изменение и удаление требуют роль `admin`.
@@ -122,6 +129,12 @@ curl -X POST http://localhost:8002/api/v1/orders/<ORDER_ID>/cancel \
 
 Commit переводит резерв в `committed`, убирает количество из зарезервированного остатка и фиксирует цену в заказе. Повтор с тем же idempotency key не создаёт второй заказ. Отмена владельцем или admin идемпотентно возвращает количество в доступный остаток. Платежи, доставка и автоматическое истечение резервов пока не реализованы.
 
+## Web UI и Playwright
+
+Nginx раздаёт адаптивный статический UI на порту `8080` и проксирует API в рамках одного origin: Identity/Catalog через `/gateway/core`, Inventory через `/gateway/inventory`, Orders через `/gateway/orders`. CORS в API не требуется. Интерфейс поддерживает вход, публичный каталог с остатками, reserve → order, список заказов и logout. JWT хранится только в `sessionStorage`; при logout и ответе 401 он удаляется. При ошибке создания заказа после успешного резерва UI пытается освободить резерв.
+
+QA-образ основан на официальном Playwright Python `v1.63.0-noble`; Python-пакет `playwright==1.63.0` совпадает с версией образа. UI-suite использует только Chromium. Desktop/mobile viewport, клавиатурный вход и отсутствие необработанных JavaScript-ошибок проверяются автоматически. Screenshot, video и trace сохраняются в игнорируемый каталог `test-results/` только при падениях. Firefox/WebKit и браузерная матрица оставлены для этапа CI.
+
 ## OpenAPI contract testing
 
 Schemathesis 4.10.2 загружает OpenAPI Identity/Catalog, Inventory и Orders. Suite содержит 27 собранных проверок — по одной на операцию; каждая выполняет до 10 детерминированных Hypothesis-примеров. GET проверяются positive-данными, изменяющие операции — negative-данными. Проверяются отсутствие 5xx, Content-Type, документированные response schemas и отклонение невалидных данных.
@@ -130,4 +143,4 @@ Schemathesis 4.10.2 загружает OpenAPI Identity/Catalog, Inventory и Or
 
 ## Фактический статус
 
-На 2026-10-02 собрано 154 содержательных теста: 7 smoke, 120 regression и 27 contract. Два последовательных полных прогона дали `154 passed`. Schemathesis обнаружил и помог исправить 500 при слишком большом `offset`; регрессионные проверки добавлены для Catalog и Orders. Конкурентные проверки подтвердили ровно 5 успешных резервов при остатке 5, единственный commit одного резерва и единственный заказ при повторе idempotency key. Это результаты локального стенда, не production-показатели. Реальные пользователи, бизнес-эффект и performance/DAST-результаты не заявляются. Подробности — в [STATUS.md](STATUS.md).
+На 2026-10-04 собрано 164 содержательных теста: 7 smoke, 120 regression, 27 contract и 10 UI. Два последовательных полных прогона дали `164 passed`; UI-suite отдельно дал `10 passed`. Schemathesis обнаружил и помог исправить 500 при слишком большом `offset`; регрессионные проверки добавлены для Catalog и Orders. Конкурентные проверки подтвердили ровно 5 успешных резервов при остатке 5, единственный commit одного резерва и единственный заказ при повторе idempotency key. Это результаты локального стенда, не production-показатели. Реальные пользователи, бизнес-эффект и performance/DAST-результаты не заявляются. Подробности — в [STATUS.md](STATUS.md).
