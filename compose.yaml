@@ -164,5 +164,50 @@ services:
       - ./allure-report:/allure-report
     profiles: ["report"]
 
+  locust:
+    build:
+      context: .
+      dockerfile: Dockerfile.load
+    environment:
+      CORE_URL: http://api:8000
+      INVENTORY_URL: http://inventory-api:8001
+      ORDERS_URL: http://orders-api:8002
+      DATABASE_URL: postgresql://commerce:commerce@postgres:5432/commerce
+      REDIS_URL: redis://redis:6379/0
+      RESULTS_DIR: /results
+      LOAD_RUN_ID: ${LOAD_RUN_ID:-local}
+    depends_on:
+      api:
+        condition: service_healthy
+      inventory-api:
+        condition: service_healthy
+      orders-api:
+        condition: service_healthy
+    volumes:
+      - ./qa/load:/mnt/locust:ro
+      - ./performance-results:/results
+    profiles: ["performance"]
+    command:
+      - -f
+      - /mnt/locust/locustfile.py
+
+  load-cleanup:
+    build:
+      context: .
+      dockerfile: Dockerfile.load
+    entrypoint: ["python", "/mnt/locust/data.py"]
+    command: ["cleanup"]
+    environment:
+      DATABASE_URL: postgresql://commerce:commerce@postgres:5432/commerce
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./qa/load:/mnt/locust:ro
+    profiles: ["performance"]
+
 volumes:
   postgres_data:

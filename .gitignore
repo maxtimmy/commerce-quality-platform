@@ -6,3 +6,5 @@ allure-results/
 allure-report/
 .env
 test-results/
+performance-results/
+security-results/
