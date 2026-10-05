@@ -16,8 +16,14 @@ def open_store(page: Page) -> None:
 def login(page: Page, credentials: dict[str, str]) -> None:
     page.get_by_test_id("email").fill(credentials["email"])
     page.get_by_test_id("password").fill(credentials["password"])
-    page.get_by_test_id("login-submit").click()
+    with page.expect_response(
+        lambda response: response.request.method == "GET"
+        and response.url.endswith("/gateway/core/products"),
+        timeout=30_000,
+    ):
+        page.get_by_test_id("login-submit").click()
     expect(page.get_by_test_id("user-email")).to_have_text(credentials["email"], timeout=30_000)
+    expect(page.get_by_test_id("catalog-status")).to_be_hidden(timeout=30_000)
 
 
 def product_card(page: Page, product_id: str):
