@@ -1,0 +1,102 @@
+name: Performance and DAST
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nonfunctional-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  performance:
+    name: Locust 20 users / 2 minutes
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      COMPOSE_PROJECT_NAME: cqp-${{ github.run_id }}-performance
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Validate Compose
+        run: docker compose config --quiet
+      - name: Start application
+        run: docker compose up --detach --build --wait
+      - name: Run Locust profile
+        run: >-
+          docker compose run --rm --build
+          -e LOAD_RUN_ID=ci-${{ github.run_id }}
+          -e RESULTS_DIR=/results/main
+          locust -f /mnt/locust/locustfile.py
+          --headless -u 20 -r 5 -t 2m
+          --csv /results/main/stats --csv-full-history
+          --html /results/main/report.html --only-summary
+      - name: Cleanup load-test data
+        if: ${{ always() }}
+        run: docker compose run --rm --build load-cleanup
+      - name: Capture service logs
+        if: ${{ always() }}
+        run: |
+          mkdir -p performance-results
+          docker compose logs --no-color > performance-results/compose.log
+      - name: Upload performance reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: performance-results
+          path: performance-results/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Stop application
+        if: ${{ always() }}
+        run: docker compose down --volumes --remove-orphans
+
+  dast:
+    name: OWASP ZAP safe scans
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      COMPOSE_PROJECT_NAME: cqp-${{ github.run_id }}-dast
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - name: Validate Compose
+        run: docker compose config --quiet
+      - name: Start application
+        run: docker compose up --detach --build --wait
+      - name: Run Web and OpenAPI scans
+        run: |
+          status=0
+          docker compose run --rm zap-web || status=$?
+          docker compose run --rm zap-api || status=$?
+          docker compose run --rm zap-api \
+            zap-api-scan.py -t http://inventory-api:8001/openapi.json \
+            -f openapi -S -c /zap/config/zap-api.conf \
+            -r inventory-api.html -J inventory-api.json -w inventory-api.md -I \
+            || status=$?
+          docker compose run --rm zap-api \
+            zap-api-scan.py -t http://orders-api:8002/openapi.json \
+            -f openapi -S -c /zap/config/zap-api.conf \
+            -r orders-api.html -J orders-api.json -w orders-api.md -I \
+            || status=$?
+          docker compose run --rm zap-check \
+            security-results/web.json security-results/core-api.json \
+            security-results/inventory-api.json security-results/orders-api.json \
+            || status=$?
+          exit "$status"
+      - name: Capture service logs
+        if: ${{ always() }}
+        run: |
+          mkdir -p security-results
+          docker compose logs --no-color > security-results/compose.log
+      - name: Upload DAST reports
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: security-results
+          path: security-results/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Stop application
+        if: ${{ always() }}
+        run: docker compose down --volumes --remove-orphans

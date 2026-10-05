@@ -6,12 +6,14 @@ from app.catalog import router as catalog_router
 from app.auth import router as auth_router
 from app.config import settings
 from app.database import engine
+from app.http_headers import add_api_security_headers
 
 app = FastAPI(
     title="Commerce Quality Platform",
     description="Minimal commerce application designed as a reproducible QA stand.",
     version="0.1.0",
 )
+add_api_security_headers(app)
 
 app.include_router(catalog_router)
 app.include_router(auth_router)

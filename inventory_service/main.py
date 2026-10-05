@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.database import engine, get_db
+from app.http_headers import add_api_security_headers
 from app.models import InventoryStock, Product, Reservation
 from inventory_service.schemas import ReservationCreate, ReservationOut, StockOut, StockSet
 from inventory_service.security import Principal, get_principal, require_admin
@@ -17,6 +18,7 @@ app = FastAPI(
     description="Inventory and reservation service for the Commerce Quality Platform.",
     version="0.1.0",
 )
+add_api_security_headers(app)
 
 
 def redis_client() -> Redis:

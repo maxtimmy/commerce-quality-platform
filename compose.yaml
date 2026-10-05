@@ -209,5 +209,69 @@ services:
       - ./qa/load:/mnt/locust:ro
     profiles: ["performance"]
 
+  zap-web:
+    image: zaproxy/zap-stable:2.17.0
+    depends_on:
+      web:
+        condition: service_healthy
+    volumes:
+      - ./qa/security:/zap/config:ro
+      - ./security-results:/zap/wrk:rw
+    profiles: ["security"]
+    command:
+      - zap-baseline.py
+      - -t
+      - http://web:8080
+      - -m
+      - "1"
+      - -c
+      - /zap/config/zap-web.conf
+      - -r
+      - web.html
+      - -J
+      - web.json
+      - -w
+      - web.md
+      - -I
+
+  zap-api:
+    image: zaproxy/zap-stable:2.17.0
+    depends_on:
+      api:
+        condition: service_healthy
+      inventory-api:
+        condition: service_healthy
+      orders-api:
+        condition: service_healthy
+    volumes:
+      - ./qa/security:/zap/config:ro
+      - ./security-results:/zap/wrk:rw
+    profiles: ["security"]
+    command:
+      - zap-api-scan.py
+      - -t
+      - http://api:8000/openapi.json
+      - -f
+      - openapi
+      - -S
+      - -c
+      - /zap/config/zap-api.conf
+      - -r
+      - core-api.html
+      - -J
+      - core-api.json
+      - -w
+      - core-api.md
+      - -I
+
+  zap-check:
+    image: python:3.12-slim
+    working_dir: /workspace
+    volumes:
+      - ./qa/security:/workspace/qa/security:ro
+      - ./security-results:/workspace/security-results:rw
+    profiles: ["security"]
+    entrypoint: ["python", "qa/security/check_reports.py"]
+
 volumes:
   postgres_data:

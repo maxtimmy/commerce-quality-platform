@@ -7,6 +7,7 @@ from sqlalchemy import select, text, update
 from sqlalchemy.orm import Session
 
 from app.database import engine, get_db
+from app.http_headers import add_api_security_headers
 from app.models import InventoryStock, Order, Product, Reservation
 from orders_service.schemas import OrderCreate, OrderOut
 from orders_service.security import Principal, get_principal
@@ -16,6 +17,7 @@ app = FastAPI(
     description="Order lifecycle service for the Commerce Quality Platform.",
     version="0.1.0",
 )
+add_api_security_headers(app)
 
 
 def ensure_same_request(order: Order, payload: OrderCreate) -> None:

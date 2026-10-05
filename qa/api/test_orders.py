@@ -21,6 +21,9 @@ def test_orders_health() -> None:
     response = requests.get(f"{ORDERS_URL}/health", timeout=5)
 
     assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["cross-origin-resource-policy"] == "same-origin"
+    assert response.headers["x-content-type-options"] == "nosniff"
     assert response.json() == {"status": "ok", "service": "orders-api"}
 
 

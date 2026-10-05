@@ -11,6 +11,9 @@ def test_inventory_health_check() -> None:
     response = requests.get(f"{INVENTORY_URL}/health", timeout=5)
 
     assert response.status_code == 200
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["cross-origin-resource-policy"] == "same-origin"
+    assert response.headers["x-content-type-options"] == "nosniff"
     assert response.json() == {"status": "ok", "service": "inventory-api"}
 
 

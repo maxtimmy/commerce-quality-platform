@@ -28,7 +28,13 @@
           <p class="hero-copy">Каталог, конкурентные остатки и оформление заказа объединены в один прозрачный пользовательский путь.</p>
         </div>
 
-        <form id="login-form" class="login-card" data-testid="login-form">
+        <form
+          id="login-form"
+          class="login-card"
+          data-testid="login-form"
+          method="post"
+          action="/gateway/core/auth/token"
+        >
           <div class="login-heading">
             <h2>Войти</h2>
             <span class="status-dot" aria-hidden="true"></span>
