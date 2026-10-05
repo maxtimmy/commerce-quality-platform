@@ -53,14 +53,18 @@ def main(arguments: list[str]) -> int:
                 risk = alert_risk(alert)
                 original_label = labels.get(risk, f"unknown-{risk}")
                 plugin_id = str(alert.get("pluginid", ""))
+                alert_name = str(alert.get("alert", alert.get("name", "unknown")))
                 default_action = "fail" if risk >= 2 else "warn" if risk == 1 else "info"
                 action, rationale = triage.get(plugin_id, (default_action, "Default risk policy"))
+                if "server error response code" in alert_name.lower():
+                    action = "fail"
+                    rationale = "HTTP 5xx responses always block DAST runs"
                 counts[action] += 1
                 triaged_alerts.append(
                     {
                         "report": str(path),
                         "plugin_id": plugin_id,
-                        "alert": str(alert.get("alert", alert.get("name", "unknown"))),
+                        "alert": alert_name,
                         "original_risk": original_label,
                         "action": action,
                         "rationale": rationale,
@@ -71,7 +75,7 @@ def main(arguments: list[str]) -> int:
                         {
                             "report": str(path),
                             "risk": original_label,
-                            "alert": str(alert.get("alert", alert.get("name", "unknown"))),
+                            "alert": alert_name,
                         }
                     )
 
