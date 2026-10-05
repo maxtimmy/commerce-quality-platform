@@ -38,14 +38,16 @@ jobs:
       - name: Capture service logs
         if: ${{ always() }}
         run: |
-          mkdir -p performance-results
-          docker compose logs --no-color > performance-results/compose.log
+          mkdir -p ci-diagnostics
+          docker compose logs --no-color > ci-diagnostics/compose.log
       - name: Upload performance reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v7.0.1
         with:
           name: performance-results
-          path: performance-results/
+          path: |
+            performance-results/
+            ci-diagnostics/
           if-no-files-found: error
           retention-days: 14
       - name: Stop application
@@ -87,14 +89,16 @@ jobs:
       - name: Capture service logs
         if: ${{ always() }}
         run: |
-          mkdir -p security-results
-          docker compose logs --no-color > security-results/compose.log
+          mkdir -p ci-diagnostics
+          docker compose logs --no-color > ci-diagnostics/compose.log
       - name: Upload DAST reports
         if: ${{ always() }}
         uses: actions/upload-artifact@v7.0.1
         with:
           name: security-results
-          path: security-results/
+          path: |
+            security-results/
+            ci-diagnostics/
           if-no-files-found: error
           retention-days: 14
       - name: Stop application
