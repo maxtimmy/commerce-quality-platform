@@ -210,16 +210,18 @@ This repository has not been published and has no Git remote, so no successful G
 
 ## Verified local results
 
-Last verified on **2026-10-05** before the final clean audit:
+Final clean audit completed on **2026-10-05**:
 
 - collection: `164 tests`;
 - smoke: `7 passed`; regression: `120 passed`; contract: `27 passed`;
 - UI: `10 passed` in each of Chromium, Firefox, and WebKit;
 - two complete Chromium runs: `164 passed` each;
 - combined Allure report: `184 passed` executions (164 source tests; 10 UI tests repeated across three browsers);
-- Locust 20 users / 5 users/s / 2 min: 24,966 requests, 208.38446412384073 RPS, 0.0 failure ratio, 2 ms median, 7 ms aggregate p95, 4 ms read-only p95;
+- Locust smoke: 302 requests, 0 failures, 20.639932647601498 RPS, 5 ms median, 20 ms p95;
+- Locust 20 users / 5 users/s / 2 min: 25,216 requests, 210.42254092897124 RPS, 0.0 failure ratio, 2 ms median, 7 ms aggregate p95, 4 ms read-only p95, no 5xx or Locust exceptions;
 - ZAP triage: 0 blocking alerts, 3 warnings, 11 informational alerts;
-- six healthy services and no residual test/load data or Redis idempotency keys.
+- migration `0004`, idempotent seed state `1 admin / 1 category / 1 product / stock 25/0`;
+- six healthy services, no residual test/load data or Redis idempotency keys, and successful removal of the isolated audit volume.
 
 These values will naturally vary between machines. The raw ignored artifacts are the source of truth for a new run.
 

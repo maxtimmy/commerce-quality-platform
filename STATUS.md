@@ -4,7 +4,7 @@
 
 ## Текущий этап
 
-Этап 9 — Locust performance и OWASP ZAP DAST: локальная реализация завершена; внешний ручной GitHub Actions run не выполнялся.
+Все десять этапов завершены локально. Проект готов к будущей публичной демонстрации; публикация и внешний GitHub Actions run не выполнялись.
 
 ## Готово
 
@@ -50,6 +50,10 @@
 - Добавлены OWASP ZAP 2.17.0 Web baseline и три safe OpenAPI scans с HTML/JSON/Markdown отчётами и машинным triage.
 - После первичного DAST исправлены defensive headers Web/API; false positive anti-CSRF для bearer-only UI сохранён в отчёте с точечным обоснованием.
 - Добавлен ручной `.github/workflows/nonfunctional.yml` с независимыми performance/DAST jobs и 14-дневными artifacts.
+- Главный README переписан на английском как портфолио-документ; полная русская версия сохранена в `README.ru.md`.
+- Добавлены MIT License, Mermaid-архитектура, карта «навык → реализация → доказательство» и честные ограничения.
+- Host-порты Compose сделаны настраиваемыми без изменения defaults и внутренних URL.
+- Добавлен однокомандный `scripts/final-audit.sh --clean-artifacts` с изолированным проектом, чистым volume и гарантированной очисткой.
 
 ## Проверено
 
@@ -121,10 +125,21 @@
 - После DAST-изменений: smoke `7 passed`, regression `120 passed`, contract `27 passed`; UI — по `10 passed` в Chromium, Firefox и WebKit.
 - Два последовательных полных Chromium-прогона этапа 9 — по `164 passed`; сбор — ровно `164 tests collected`.
 - Все шесть сервисов healthy; `docker compose config --quiet`, `actionlint 1.7.12` и `git diff --check` прошли.
+- Финальный audit пересобрал собственные образы без кэша и поднял шесть healthy-сервисов на чистом изолированном PostgreSQL volume.
+- Миграция дошла до `0004`; повторный seed сохранил состояние `1 admin / 1 category / 1 product / stock 25/0`.
+- Финальный collection — ровно `164 tests`; smoke `7`, regression `120`, contract `27`, UI по `10` в Chromium/Firefox/WebKit.
+- Два финальных полных Chromium-прогона — `164 passed` за 37.59 с и `164 passed` за 38.21 с.
+- Финальный Allure report содержит 184 успешных выполнения, создан и успешно открыт по HTTP.
+- Финальный Locust smoke: 302 запроса, 0 failures, 20.639932647601498 RPS, median 5 мс, p95 20 мс.
+- Финальный Locust 20 users / 5 users/s / 2 min: 25 216 запросов, 210.42254092897124 RPS, failure ratio 0.0, median 2 мс, aggregate p95 7 мс, read p95 4 мс, 0 HTTP 5xx и 0 Locust exceptions.
+- Финальный ZAP triage: 0 blocking, 3 WARN и 11 INFO; четыре target создали HTML/JSON/Markdown.
+- После аудита осталось 0 test/load-пользователей, товаров, категорий, резервов, заказов, активных резервов и Redis idempotency keys.
+- Allure, performance и security artifacts проверены; локальные Markdown-ссылки, Compose, actionlint и diff validation прошли.
+- Изолированный `cqp-final-audit` остановлен вместе с volume; основной локальный стенд остался в состоянии шести healthy-сервисов.
 
-## Следующий этап
+## Завершение
 
-Этап 10: финальный аудит документации и воспроизводимости на чистом окружении.
+Запланированных этапов больше нет. Следующее возможное действие — публикация репозитория и первый внешний GitHub Actions run, но только по отдельной явной просьбе.
 
 ## Ограничения и честные метрики
 

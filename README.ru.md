@@ -224,7 +224,7 @@ Schemathesis 4.10.2 загружает OpenAPI Identity/Catalog, Inventory и Or
 
 ## Фактический статус
 
-На 2026-10-05 собрано 164 содержательных теста: 7 smoke, 120 regression, 27 contract и 10 UI. Два последовательных полных Chromium-прогона дали `164 passed`; UI-suite отдельно дал по `10 passed` в Chromium, Firefox и WebKit. Основной локальный Locust-профиль выполнил 24 966 запросов при 208.38446412384073 RPS, failure ratio 0.0, median 2 мс, aggregate p95 7 мс и read-only p95 4 мс. Финальный ZAP triage: 0 блокирующих alerts, 3 WARN и 11 INFO. Это показатели конкретного локального Docker-стенда, не production SLA и не результаты реальных пользователей. Подробности — в [STATUS.md](STATUS.md).
+Финальный чистый аудит 2026-10-05 подтвердил 164 содержательных теста: 7 smoke, 120 regression, 27 contract и 10 UI. Два последовательных полных Chromium-прогона дали `164 passed`; UI-suite отдельно дал по `10 passed` в Chromium, Firefox и WebKit. Объединённый Allure содержит 184 успешных выполнения. Основной Locust-профиль выполнил 25 216 запросов при 210.42254092897124 RPS, failure ratio 0.0, median 2 мс, aggregate p95 7 мс и read-only p95 4 мс, без 5xx и исключений Locust. ZAP triage: 0 блокирующих alerts, 3 WARN и 11 INFO. После аудита нет тестовых/load-данных и Redis-ключей; изолированный audit volume удалён. Это показатели конкретного локального Docker-стенда, не production SLA и не результаты реальных пользователей. Подробности — в [STATUS.md](STATUS.md).
 
 ## Лицензия
 
