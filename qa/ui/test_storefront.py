@@ -108,6 +108,8 @@ def test_stale_stock_conflict_is_shown_without_order(
 ) -> None:
     open_store(ui_page)
     login(ui_page, customer_credentials)
+    buy_button = product_card(ui_page, stocked_product["id"]).get_by_test_id("buy")
+    expect(buy_button).to_be_enabled()
     assert requests.put(
         f"{INVENTORY_URL}/api/v1/inventory/{stocked_product['id']}",
         json={"quantity": 0},
@@ -115,7 +117,7 @@ def test_stale_stock_conflict_is_shown_without_order(
         timeout=5,
     ).status_code == 200
 
-    product_card(ui_page, stocked_product["id"]).get_by_test_id("buy").click()
+    buy_button.click()
 
     expect(ui_page.get_by_test_id("order-feedback")).to_have_text(
         "Недостаточно товара для выбранного количества."
