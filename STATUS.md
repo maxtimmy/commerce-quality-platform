@@ -1,10 +1,10 @@
 # Commerce Quality Platform — статус
 
-Обновлено: 2026-10-04
+Обновлено: 2026-10-05
 
 ## Текущий этап
 
-Этап 8 — Allure и параллельный GitHub Actions CI: локальная реализация завершена; внешний CI run не выполнялся.
+Этап 9 — Locust performance и OWASP ZAP DAST: локальная реализация завершена; внешний ручной GitHub Actions run не выполнялся.
 
 ## Готово
 
@@ -45,6 +45,11 @@
 - UI-suite проверен в Chromium, Firefox и WebKit без дублирования исходных тестов.
 - Добавлен GitHub Actions workflow: smoke/regression/contract jobs, UI browser matrix и объединённый HTML artifact.
 - Contract suite обнаружил 500 для OAuth2 username с NUL; login теперь безопасно возвращает общий 401, сценарий закреплён существующей regression-проверкой.
+- Добавлен смешанный Locust 2.46.5 профиль: 70% публичного чтения и 30% register/login/reserve/order/read/cancel.
+- Добавлены уникальные load-данные, автоматическая и отдельная идемпотентная очистка PostgreSQL/Redis, HTML/CSV/JSON artifacts и локальные guardrails.
+- Добавлены OWASP ZAP 2.17.0 Web baseline и три safe OpenAPI scans с HTML/JSON/Markdown отчётами и машинным triage.
+- После первичного DAST исправлены defensive headers Web/API; false positive anti-CSRF для bearer-only UI сохранён в отчёте с точечным обоснованием.
+- Добавлен ручной `.github/workflows/nonfunctional.yml` с независимыми performance/DAST jobs и 14-дневными artifacts.
 
 ## Проверено
 
@@ -108,10 +113,18 @@
 - Контролируемое UI-падение появилось в Allure и создало screenshot PNG, video WebM и trace ZIP; временный тест удалён.
 - `actionlint 1.7.12`, `docker compose config --quiet` и `git diff --check` прошли.
 - HTML-отчёт успешно сгенерирован, содержит `index.html` и отдан локальным Nginx с HTTP 200.
+- Locust smoke: 306 запросов, 0 failures; основной профиль 20 users / 5 users/s / 2 min: 24 966 запросов, 208.38446412384073 RPS, failure ratio 0.0, median 2 мс, aggregate p95 7 мс, read p95 4 мс, 0 HTTP 5xx, 0 Locust exceptions.
+- Контролируемое нарушение `MIN_REQUESTS` завершилось exit code 1 и создало `guardrail-failures.txt`.
+- После нагрузки осталось 0 load-пользователей, товаров, категорий, резервов, заказов, активных резервов и Redis idempotency keys.
+- ZAP Web baseline и три safe OpenAPI scans завершились без FAIL; итоговый triage содержит 0 blocking, 3 WARN и 11 INFO.
+- Контролируемый неклассифицированный Medium alert завершил ZAP checker с exit code 1.
+- После DAST-изменений: smoke `7 passed`, regression `120 passed`, contract `27 passed`; UI — по `10 passed` в Chromium, Firefox и WebKit.
+- Два последовательных полных Chromium-прогона этапа 9 — по `164 passed`; сбор — ровно `164 tests collected`.
+- Все шесть сервисов healthy; `docker compose config --quiet`, `actionlint 1.7.12` и `git diff --check` прошли.
 
 ## Следующий этап
 
-Этап 9: нагрузочные сценарии Locust и базовый DAST-проход OWASP ZAP.
+Этап 10: финальный аудит документации и воспроизводимости на чистом окружении.
 
 ## Ограничения и честные метрики
 
@@ -121,10 +134,12 @@
 - Refresh tokens, logout, восстановление пароля, подтверждение email и rate limiting не реализованы.
 - Inventory и Identity/Catalog пока используют общий PostgreSQL-инстанс; отдельные БД не заявляются.
 - Автоматическое истечение резервов, платежи и доставка не реализованы.
-- Нагрузочные и DAST-результаты ещё не получены.
+- Performance-метрики относятся только к одному локальному Docker-прогону 2026-10-05 и не являются production SLA или результатом реальных пользователей.
+- DAST ограничен passive baseline и safe OpenAPI mode; authenticated/active scan и эксплуатация уязвимостей не выполнялись.
+- Web anti-CSRF alert исходно имеет Medium severity, но классифицирован INFO как false positive: UI использует bearer token в `sessionStorage`, а не cookie-сессию. Alert и обоснование сохранены в отчёте.
 - OpenAPI пока не перечисляет все доменные 401/403/404/409 responses, поэтому Schemathesis `status_code_conformance` явно отложен до расширения error-контрактов.
 - Неизвестные query-параметры FastAPI игнорирует; contract generation считает их допустимыми и продолжает проверять объявленные типы и границы.
 - UI локально проверен в Chromium, Firefox и WebKit.
 - UI — учебный QA-стенд без frontend-фреймворка, production-аутентификации и заявлений о реальной эксплуатации.
-- GitHub Actions workflow статически проверен, но фактически не запускался: у репозитория нет remote, публикация не выполнялась.
+- Оба GitHub Actions workflow статически проверены, но фактически не запускались: у репозитория нет remote, публикация не выполнялась.
 - 184 строки Allure — это выполнения 164 тестов с повтором 10 UI-сценариев в трёх браузерах, а не искусственно увеличенное число тестов.

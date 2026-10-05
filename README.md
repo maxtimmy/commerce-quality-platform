@@ -1,6 +1,6 @@
 # Commerce Quality Platform
 
-Воспроизводимый QA-стенд минимального интернет-магазина. Реализованы Identity/Catalog, Inventory и Orders API с JWT/RBAC, PostgreSQL, Redis, конкурентным резервированием, атомарным оформлением заказа, Web UI, кросс-браузерными E2E-тестами, Allure и параллельным GitHub Actions workflow. Полная тестовая стратегия и подтверждённые результаты дополняются по мере реализации этапов из [PLAN.md](PLAN.md).
+Воспроизводимый QA-стенд минимального интернет-магазина. Реализованы Identity/Catalog, Inventory и Orders API с JWT/RBAC, PostgreSQL, Redis, конкурентным резервированием, атомарным оформлением заказа, Web UI, кросс-браузерными E2E-тестами, Allure, Locust, безопасным OWASP ZAP DAST и раздельными GitHub Actions workflow. Полная тестовая стратегия и подтверждённые результаты дополняются по мере реализации этапов из [PLAN.md](PLAN.md).
 
 ## Быстрый запуск
 
@@ -33,7 +33,7 @@ docker compose down
 - `orders_service/` — отдельный Orders API;
 - `web/` — статический HTML/CSS/JavaScript UI и Nginx reverse proxy;
 - `qa/` — независимый QA-код;
-- `compose.yaml` — три API, PostgreSQL, Redis, Web UI и запускаемый по профилю QA-контейнер;
+- `compose.yaml` — три API, PostgreSQL, Redis, Web UI и профили QA/performance/security;
 - `SPEC.md`, `PLAN.md`, `STATUS.md` — требования, этапы и проверенный статус.
 
 OpenAPI после запуска доступен по адресам `http://localhost:8000/openapi.json`, `http://localhost:8001/openapi.json` и `http://localhost:8002/openapi.json`.
@@ -152,6 +152,58 @@ Workflow `.github/workflows/qa.yml` запускается для push/pull requ
 
 Workflow проверен локально `actionlint 1.7.12`; фактический запуск GitHub Actions пока не выполнялся, поскольку у локального репозитория нет remote и проект не публиковался.
 
+## Locust performance
+
+Locust 2.46.5 запускается из закреплённого официального образа. Профиль создаёт изолированный товар `LOAD-<run-id>` с большим остатком, распределяет 20 пользователей как 14 читающих и 6 оформляющих, а после теста удаляет пользователей, заказы, резервы, остаток, товар, категорию и Redis-ключи.
+
+Короткая проверка и основной профиль:
+
+```bash
+docker compose run --rm --build \
+  -e LOAD_RUN_ID=smoke-local -e RESULTS_DIR=/results/smoke -e MIN_REQUESTS=1 \
+  locust -f /mnt/locust/locustfile.py --headless \
+  -u 2 -r 2 -t 15s --csv /results/smoke/stats --csv-full-history \
+  --html /results/smoke/report.html --only-summary
+
+docker compose run --rm --build \
+  -e LOAD_RUN_ID=main-local -e RESULTS_DIR=/results/main \
+  locust -f /mnt/locust/locustfile.py --headless \
+  -u 20 -r 5 -t 2m --csv /results/main/stats --csv-full-history \
+  --html /results/main/report.html --only-summary
+```
+
+Аварийная идемпотентная очистка доступна отдельно:
+
+```bash
+docker compose run --rm --build load-cleanup
+```
+
+Guardrails стенда: failure ratio ≤ 1%, aggregate p95 ≤ 1500 мс, read-only p95 ≤ 1000 мс, не менее 500 запросов, отсутствие HTTP 5xx и исключений Locust. HTML, CSV, JSON summary и параметры сохраняются в игнорируемом `performance-results/`.
+
+## OWASP ZAP DAST
+
+ZAP 2.17.0 выполняет только passive Web baseline и safe OpenAPI scans (`-S`); active scan, эксплуатация и внешние адреса исключены.
+
+```bash
+docker compose run --rm zap-web
+docker compose run --rm zap-api
+docker compose run --rm zap-api zap-api-scan.py \
+  -t http://inventory-api:8001/openapi.json -f openapi -S \
+  -c /zap/config/zap-api.conf \
+  -r inventory-api.html -J inventory-api.json -w inventory-api.md -I
+docker compose run --rm zap-api zap-api-scan.py \
+  -t http://orders-api:8002/openapi.json -f openapi -S \
+  -c /zap/config/zap-api.conf \
+  -r orders-api.html -J orders-api.json -w orders-api.md -I
+docker compose run --rm zap-check \
+  security-results/web.json security-results/core-api.json \
+  security-results/inventory-api.json security-results/orders-api.json
+```
+
+Каждый target создаёт HTML, JSON и Markdown в игнорируемом `security-results/`. Машинный triage блокирует новые Medium/High и технические ошибки; Low остаются WARN, Informational — INFO. Единственный исходный Medium от Web — отсутствие anti-CSRF token — явно классифицирован как неприменимый к bearer-аутентификации без cookie-сессии и остаётся видимым в отчёте. Это точечное обоснование, не глобальное исключение.
+
+Отдельный `.github/workflows/nonfunctional.yml` запускается только вручную и параллельно выполняет performance и DAST в изолированных Compose-проектах. Артефакты хранятся 14 дней; secrets, Pages и deployment не используются. Workflow статически проверен, но внешний run не выполнялся.
+
 ## OpenAPI contract testing
 
 Schemathesis 4.10.2 загружает OpenAPI Identity/Catalog, Inventory и Orders. Suite содержит 27 собранных проверок — по одной на операцию; каждая выполняет до 10 детерминированных Hypothesis-примеров. GET проверяются positive-данными, изменяющие операции — negative-данными. Проверяются отсутствие 5xx, Content-Type, документированные response schemas и отклонение невалидных данных.
@@ -160,4 +212,4 @@ Schemathesis 4.10.2 загружает OpenAPI Identity/Catalog, Inventory и Or
 
 ## Фактический статус
 
-На 2026-10-04 собрано 164 содержательных теста: 7 smoke, 120 regression, 27 contract и 10 UI. Два последовательных полных Chromium-прогона дали `164 passed`; UI-suite отдельно дал по `10 passed` в Chromium, Firefox и WebKit. Чистый Allure-отчёт содержит 184 успешных выполнения с учётом трёх браузеров — это не 184 разных теста. Schemathesis обнаружил и помог исправить 500 при слишком большом `offset` и NUL в OAuth2 username. Это результаты локального стенда, не production-показатели. Реальные пользователи, бизнес-эффект и performance/DAST-результаты не заявляются. Подробности — в [STATUS.md](STATUS.md).
+На 2026-10-05 собрано 164 содержательных теста: 7 smoke, 120 regression, 27 contract и 10 UI. Два последовательных полных Chromium-прогона дали `164 passed`; UI-suite отдельно дал по `10 passed` в Chromium, Firefox и WebKit. Основной локальный Locust-профиль выполнил 24 966 запросов при 208.38446412384073 RPS, failure ratio 0.0, median 2 мс, aggregate p95 7 мс и read-only p95 4 мс. Финальный ZAP triage: 0 блокирующих alerts, 3 WARN и 11 INFO. Это показатели конкретного локального Docker-стенда, не production SLA и не результаты реальных пользователей. Подробности — в [STATUS.md](STATUS.md).

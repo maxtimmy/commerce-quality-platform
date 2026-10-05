@@ -155,3 +155,13 @@ Orders работает отдельным FastAPI-процессом на по�
 - Каждый job работает с отдельным Compose-проектом и БД, сохраняет результаты и очищает volumes даже после ошибки.
 - Итоговый CI job объединяет raw results и сохраняет HTML report как artifact на 14 дней; Pages и deployment не используются.
 - Локально workflow проверяется actionlint. Успешный внешний CI run нельзя заявлять до публикации репозитория.
+
+## 14. Реализованные performance и DAST проверки
+
+- Locust 2.46.5 использует профиль из 70% публичного чтения каталога/остатка и 30% полного register → login → reserve → order → read → cancel пути.
+- Основной запуск: 20 пользователей, spawn rate 5/с, 2 минуты, случайная пауза 0.1–0.5 с. Выделенные `LOAD-<run-id>` данные создаются перед запуском и удаляются после него; предусмотрена отдельная идемпотентная cleanup-команда.
+- Guardrails ограничены локальным Docker-стендом: failures ≤1%, aggregate p95 ≤1500 мс, read p95 ≤1000 мс, ≥500 запросов, без 5xx и исключений Locust.
+- OWASP ZAP 2.17.0 выполняет Web baseline и три safe OpenAPI scan без active scan и эксплуатации.
+- Все ZAP alerts сохраняются в HTML/JSON/Markdown. Неклассифицированные Medium/High блокируют запуск, Low остаются WARN, Informational — INFO; точечные изменения классификации требуют записанного обоснования.
+- Отдельный ручной GitHub Actions workflow запускает performance и DAST jobs в разных Compose-проектах, всегда сохраняет отчёты/логи и удаляет volumes.
+- `performance-results/` и `security-results/` не входят в Git. Полученные значения не являются production SLA.

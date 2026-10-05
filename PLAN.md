@@ -68,9 +68,11 @@
 
 ## Этап 9. Performance и DAST
 
-**Результат:** сценарии Locust и OWASP ZAP baseline.
+**Статус:** завершён локально 2026-10-05; внешний ручной GitHub Actions run ожидает публикации репозитория.
 
-**Проверка:** воспроизводимый профиль нагрузки и отчёт; triage предупреждений ZAP; критерии не выдают результаты стенда за production SLA.
+**Результат:** смешанный Locust-профиль 20 users / 2 min, безопасные OWASP ZAP Web/OpenAPI scans и ручной nonfunctional workflow.
+
+**Проверка:** guardrails и контролируемый failure path, полная очистка load-данных, четыре DAST-отчёта с triage, повтор функциональных suites и actionlint; показатели не выдаются за production SLA.
 
 ## Этап 10. Документация и финальная воспроизводимость
 
