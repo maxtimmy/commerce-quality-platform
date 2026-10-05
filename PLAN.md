@@ -60,15 +60,15 @@
 
 ## Этап 8. Полный suite, Allure и параллельный CI
 
-**Статус:** завершён локально 2026-10-04; внешний GitHub Actions run ожидает публикации репозитория.
+**Статус:** завершён локально 2026-10-04; внешний GitHub Actions QA run успешно выполнен 2026-10-05.
 
 **Результат:** 164 содержательных теста, Allure Report 2.46.1 и матричный GitHub Actions workflow для трёх браузеров.
 
-**Проверка:** `--collect-only`, повторные прогоны, три браузера, failure artifacts, HTML-отчёт и actionlint; внешний run не заявляется без remote.
+**Проверка:** `--collect-only`, повторные прогоны, три браузера, failure artifacts, HTML-отчёт и actionlint; публичный QA run 37310015364 завершён успешно.
 
 ## Этап 9. Performance и DAST
 
-**Статус:** завершён локально 2026-10-05; внешний ручной GitHub Actions run ожидает публикации репозитория.
+**Статус:** завершён локально 2026-10-05; внешний ручной performance/DAST run пока не запускался.
 
 **Результат:** смешанный Locust-профиль 20 users / 2 min, безопасные OWASP ZAP Web/OpenAPI scans и ручной nonfunctional workflow.
 

@@ -152,7 +152,7 @@ QA-образ основан на официальном Playwright Python `v1.6
 
 Workflow `.github/workflows/qa.yml` запускается для push/pull request в `main` и вручную. Smoke, regression, contract и три UI-browser jobs используют отдельные GitHub-hosted runners и изолированные Compose-проекты. Каждый job сохраняет raw Allure results, а итоговый job собирает единый HTML artifact на 14 дней. GitHub Pages, deployment и secrets не используются.
 
-Workflow проверен локально `actionlint 1.7.12`; фактический запуск GitHub Actions пока не выполнялся, поскольку у локального репозитория нет remote и проект не публиковался.
+Workflow проверен локально `actionlint 1.7.12` и успешно выполнен в GitHub Actions 2026-10-05: конфигурация, smoke, regression, contract, Chromium, Firefox, WebKit и общий Allure report прошли в [run 37310015364](https://github.com/maxtimmy/commerce-quality-platform/actions/runs/37310015364).
 
 ## Locust performance
 
@@ -204,7 +204,7 @@ docker compose run --rm zap-check \
 
 Каждый target создаёт HTML, JSON и Markdown в игнорируемом `security-results/`. Машинный triage блокирует новые Medium/High и технические ошибки; Low остаются WARN, Informational — INFO. Единственный исходный Medium от Web — отсутствие anti-CSRF token — явно классифицирован как неприменимый к bearer-аутентификации без cookie-сессии и остаётся видимым в отчёте. Это точечное обоснование, не глобальное исключение.
 
-Отдельный `.github/workflows/nonfunctional.yml` запускается только вручную и параллельно выполняет performance и DAST в изолированных Compose-проектах. Артефакты хранятся 14 дней; secrets, Pages и deployment не используются. Workflow статически проверен, но внешний run не выполнялся.
+Отдельный `.github/workflows/nonfunctional.yml` запускается только вручную и параллельно выполняет performance и DAST в изолированных Compose-проектах. Артефакты хранятся 14 дней; secrets, Pages и deployment не используются. Workflow статически и локально проверен, но вручную на GitHub пока не запускался.
 
 ## Финальный аудит одной командой
 

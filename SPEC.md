@@ -154,7 +154,7 @@ Orders работает отдельным FastAPI-процессом на по�
 - GitHub Actions разделяет smoke, regression и contract на независимые jobs; UI использует матрицу Chromium/Firefox/WebKit.
 - Каждый job работает с отдельным Compose-проектом и БД, сохраняет результаты и очищает volumes даже после ошибки.
 - Итоговый CI job объединяет raw results и сохраняет HTML report как artifact на 14 дней; Pages и deployment не используются.
-- Локально workflow проверяется actionlint. Успешный внешний CI run нельзя заявлять до публикации репозитория.
+- Workflow проверяется actionlint. Публичный QA run 37310015364 успешно подтвердил smoke, regression, contract, три UI-браузера и сборку Allure; ручной non-functional workflow внешне не запускался.
 
 ## 14. Реализованные performance и DAST проверки
 
@@ -174,4 +174,4 @@ Orders работает отдельным FastAPI-процессом на по�
 - Host-порты Compose настраиваются переменными, сохраняя defaults `8000/8001/8002/8080` и неизменные внутренние API URL.
 - `scripts/final-audit.sh --clean-artifacts` требует чистый Git, использует отдельный Compose-проект и чистый PostgreSQL volume, пересобирает собственные образы без кэша и запускает весь функциональный и нефункциональный контур.
 - Audit очищает только игнорируемые каталоги отчётов, проверяет миграцию/seed, 164 collected tests, 184 Allure executions, Locust/ZAP artifacts, отсутствие остаточных PostgreSQL/Redis данных и всегда удаляет свой volume.
-- Локальная готовность к публикации не означает фактическую публикацию или успешный внешний GitHub Actions run.
+- Проект опубликован в `maxtimmy/commerce-quality-platform`; успешный внешний QA run фиксируется отдельно от локального финального аудита и ещё не выполненного ручного non-functional run.

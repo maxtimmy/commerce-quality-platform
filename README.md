@@ -43,7 +43,7 @@ Identity/Catalog, Inventory, and Orders are separate FastAPI processes. They int
 | Allure | Suite hierarchy, environment metadata, failure details | Reproducible combined HTML report |
 | Locust | 70% read / 30% checkout-and-cancel workload | HTML, CSV, JSON, guardrails and cleanup |
 | OWASP ZAP | Passive Web baseline and three safe OpenAPI scans | Per-target HTML, JSON, Markdown and explicit triage |
-| GitHub Actions | Isolated parallel suites and manual non-functional jobs | Statically validated workflows; no external run claimed |
+| GitHub Actions | Isolated parallel suites and manual non-functional jobs | QA matrix verified on GitHub; non-functional workflow remains manual |
 
 ## Quick start
 
@@ -206,7 +206,7 @@ Only the Git-ignored `allure-results/`, `allure-report/`, `test-results/`, `perf
 - Jobs use read-only permissions, no secrets, no deployment, no GitHub Pages, and 14-day artifacts.
 - Both workflows pass local `actionlint 1.7.12` validation.
 
-This repository has not been published and has no Git remote, so no successful GitHub Actions execution is claimed.
+The public repository is available at [maxtimmy/commerce-quality-platform](https://github.com/maxtimmy/commerce-quality-platform). The QA workflow completed successfully on **2026-10-05** ([run 37310015364](https://github.com/maxtimmy/commerce-quality-platform/actions/runs/37310015364)): configuration validation, smoke, regression, contract, Chromium, Firefox, WebKit, and the combined Allure report all passed. The manual performance/DAST workflow has not been run on GitHub; its results below are from the local final audit.
 
 ## Verified local results
 
@@ -253,7 +253,7 @@ Long-term project requirements, implementation stages, and verified history are 
 - Unknown query parameters are ignored by the current FastAPI application and treated accordingly by contract generation.
 - DAST is passive/safe and unauthenticated; it is not a penetration test.
 - Performance thresholds are local stability guardrails, not capacity claims.
-- GitHub Actions configuration is statically validated but not externally executed.
+- The push/PR QA workflow is externally verified; the manual performance/DAST workflow is only locally verified.
 
 ## License
 
