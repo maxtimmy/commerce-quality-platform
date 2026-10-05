@@ -1,188 +1,173 @@
 # Commerce Quality Platform
 
-Воспроизводимый QA-стенд минимального интернет-магазина. Реализованы Identity/Catalog, Inventory и Orders API с JWT/RBAC, PostgreSQL, Redis, конкурентным резервированием, атомарным оформлением заказа, Web UI, кросс-браузерными E2E-тестами, Allure, Locust, безопасным OWASP ZAP DAST и раздельными GitHub Actions workflow. Полная тестовая стратегия и подтверждённые результаты дополняются по мере реализации этапов из [PLAN.md](PLAN.md).
+**English** | [Русский](README.ru.md)
 
-## Быстрый запуск
+A public, reproducible QA portfolio project built around a deliberately small microservice commerce application. The application exists to exercise realistic quality risks—not to imitate a production store—and demonstrates API, integration, contract, UI, concurrency, performance, and baseline security testing.
 
-Требуется Docker с Docker Compose.
+The repository currently contains **164 independently collected automated tests** and reproducible Docker workflows for Pytest, requests, Playwright, Schemathesis, PostgreSQL, Redis, Allure, Locust, OWASP ZAP, and GitHub Actions.
+
+> The verified figures in this document describe one local Docker environment. They are not production SLAs, user traffic, business outcomes, or evidence of production operation.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Browser[Web browser] -->|HTTP :8080| Web[Nginx static Web UI]
+    Web -->|/gateway/core| Core[Identity / Catalog API :8000]
+    Web -->|/gateway/inventory| Inventory[Inventory API :8001]
+    Web -->|/gateway/orders| Orders[Orders API :8002]
+    Core --> PostgreSQL[(PostgreSQL)]
+    Core --> Redis[(Redis)]
+    Inventory --> PostgreSQL
+    Inventory --> Redis
+    Orders --> PostgreSQL
+    QA[Independent QA container] --> Core
+    QA --> Inventory
+    QA --> Orders
+    QA --> Web
+```
+
+Identity/Catalog, Inventory, and Orders are separate FastAPI processes. They intentionally share one PostgreSQL instance so reserve-to-order transitions can be tested atomically without claiming distributed transactions. PostgreSQL is the source of truth; Redis is a 10-minute idempotency cache with a tested database fallback.
+
+## What this project demonstrates
+
+| Skill | Implementation | Evidence |
+|---|---|---|
+| Python, Pytest, requests | Independent API and integration suites with isolated fixtures | 120 regression and 7 smoke tests |
+| API testing | Positive, negative, validation, pagination, error, and idempotency scenarios | `qa/api/` and PostgreSQL cross-checks |
+| JWT and RBAC | Registration, Argon2 passwords, HS256 access tokens, customer/admin matrix | Missing, malformed, expired, inactive, foreign-user, and role tests |
+| PostgreSQL and Redis | Direct persistence checks, constraints, cache verification and fallback | API ↔ database ↔ cache integration tests |
+| Concurrency | Conditional SQL updates, row/advisory locks, idempotent replay | Oversell and duplicate-order race tests |
+| OpenAPI and Schemathesis | Property-based checks for all 27 documented operations | 27 contract tests, up to 10 Hypothesis examples each |
+| Playwright | Critical sign-in → reserve → order flow | 10 scenarios in Chromium, Firefox, and WebKit |
+| Allure | Suite hierarchy, environment metadata, failure details | Reproducible combined HTML report |
+| Locust | 70% read / 30% checkout-and-cancel workload | HTML, CSV, JSON, guardrails and cleanup |
+| OWASP ZAP | Passive Web baseline and three safe OpenAPI scans | Per-target HTML, JSON, Markdown and explicit triage |
+| GitHub Actions | Isolated parallel suites and manual non-functional jobs | Statically validated workflows; no external run claimed |
+
+## Quick start
+
+Requirements: Docker with Docker Compose and available host ports `8000`, `8001`, `8002`, and `8080`.
 
 ```bash
 docker compose up -d --build --wait
+
 curl http://localhost:8000/health
-curl http://localhost:8000/ready
 curl http://localhost:8001/health
-curl http://localhost:8001/ready
 curl http://localhost:8002/health
-curl http://localhost:8002/ready
 curl http://localhost:8080/health
-docker compose --profile qa run --rm --build qa
 ```
 
-Web UI после запуска доступен по адресу `http://localhost:8080`.
+The storefront is available at `http://localhost:8080`; OpenAPI documents are available at:
 
-Остановка без удаления данных PostgreSQL:
+- `http://localhost:8000/openapi.json` — Identity and Catalog;
+- `http://localhost:8001/openapi.json` — Inventory;
+- `http://localhost:8002/openapi.json` — Orders.
+
+Host ports can be changed without changing service-to-service URLs:
+
+```bash
+CORE_PORT=18000 INVENTORY_PORT=18001 ORDERS_PORT=18002 WEB_PORT=18080 \
+  docker compose up -d --build --wait
+```
+
+Stop the stack while preserving PostgreSQL data:
 
 ```bash
 docker compose down
 ```
 
-## Текущая структура
+## Test strategy
 
-- `app/` — Identity/Catalog API и общие модели;
-- `inventory_service/` — отдельный Inventory API;
-- `orders_service/` — отдельный Orders API;
-- `web/` — статический HTML/CSS/JavaScript UI и Nginx reverse proxy;
-- `qa/` — независимый QA-код;
-- `compose.yaml` — три API, PostgreSQL, Redis, Web UI и профили QA/performance/security;
-- `SPEC.md`, `PLAN.md`, `STATUS.md` — требования, этапы и проверенный статус.
+| Suite | Collected tests | Purpose |
+|---|---:|---|
+| `smoke` | 7 | Service health and critical availability |
+| `regression` | 120 | API, integration, RBAC, storage, and concurrency behavior |
+| `contract` | 27 | OpenAPI/property-based conformance and absence of 5xx |
+| `ui` | 10 | Critical browser path, errors, mobile layout, keyboard access |
+| **Total source tests** | **164** | Browser matrix executions are not counted as new tests |
 
-OpenAPI после запуска доступен по адресам `http://localhost:8000/openapi.json`, `http://localhost:8001/openapi.json` и `http://localhost:8002/openapi.json`.
-
-Полный прогон и отдельные suites:
+Run the complete Chromium suite or an individual marker:
 
 ```bash
-docker compose --profile qa run --rm qa pytest -q --browser chromium
-docker compose --profile qa run --rm qa pytest -m smoke -q --browser chromium
-docker compose --profile qa run --rm qa pytest -m regression -q --browser chromium
-docker compose --profile qa run --rm qa pytest -m contract -q --browser chromium
-docker compose --profile qa run --rm qa pytest -m ui -q --browser chromium \
-  --tracing retain-on-failure --video retain-on-failure \
-  --screenshot only-on-failure --output test-results
+docker compose --profile qa run --rm --build qa pytest -q --browser chromium
+docker compose --profile qa run --rm qa pytest -q -m smoke --browser chromium
+docker compose --profile qa run --rm qa pytest -q -m regression --browser chromium
+docker compose --profile qa run --rm qa pytest -q -m contract --browser chromium
+docker compose --profile qa run --rm qa pytest -q -m ui --browser chromium
 docker compose --profile qa run --rm qa pytest --collect-only -q --browser chromium
 ```
 
-Allure results и локальный HTML-отчёт:
+Run UI tests with retained failure artifacts:
 
 ```bash
-docker compose --profile qa run --rm qa pytest -m smoke -q \
+docker compose --profile qa run --rm qa pytest -q -m ui \
+  --browser firefox \
+  --tracing retain-on-failure --video retain-on-failure \
+  --screenshot only-on-failure --output test-results/firefox
+```
+
+## Main behavior under test
+
+### Identity and Catalog
+
+- Public customer registration always creates the `customer` role.
+- Passwords are hashed with Argon2; 15-minute JWT access tokens contain `sub`, `role`, `iat`, and `exp`.
+- Catalog reads are public; category and product mutations require `admin`.
+- Duplicate, malformed, unauthorized, forbidden, unknown-resource, and relationship-conflict cases have stable HTTP responses.
+
+The Compose credentials below are explicit local demonstration values, not secrets suitable for deployment:
+
+```text
+email: admin@example.com
+password: LocalAdmin123!
+JWT secret: local-demo-secret-not-for-production
+```
+
+### Inventory and Orders
+
+- Reserve uses an atomic conditional PostgreSQL update and cannot produce negative stock.
+- `(user_id, idempotency_key)` is unique; concurrent replay returns one reservation.
+- Redis accelerates replay but PostgreSQL remains the safe fallback.
+- Order creation commits an active reservation and snapshots its price in one transaction.
+- Repeated or concurrent order requests do not create duplicate orders.
+- Cancellation is idempotent and restores available stock exactly once.
+
+Automatic reservation expiry, payments, delivery, refresh tokens, email verification, password recovery, and rate limiting are intentionally out of scope.
+
+## Allure reporting
+
+Generate raw results and the pinned Allure Report 2.46.1 HTML without installing Java or Allure on the host:
+
+```bash
+docker compose --profile qa run --rm qa pytest -q -m smoke \
   --alluredir=allure-results/smoke
 docker compose --profile report run --rm --build allure-report \
   generate /allure-results --output /allure-report --clean
 ```
 
-Готовый отчёт находится в `allure-report/index.html`. Генератор использует закреплённый Allure Report 2.46.1 и Java внутри Docker; установка на хост не требуется. `allure-results/`, `allure-report/` и `test-results/` не коммитятся.
+Open `allure-report/index.html`. Raw results, HTML reports, and Playwright failure artifacts are Git-ignored.
 
-Каталог доступен под `/api/v1/categories` и `/api/v1/products`. Чтение публичное; создание, изменение и удаление требуют роль `admin`.
+## Locust performance profile
 
-## JWT и RBAC
-
-Демонстрационные учётные данные из `compose.yaml` предназначены только для локального стенда:
-
-- email: `admin@example.com`;
-- пароль: `LocalAdmin123!`;
-- JWT secret: `local-demo-secret-not-for-production`.
-
-Получение токена и защищённый запрос:
+The pinned `locustio/locust:2.46.5` profile creates a dedicated `LOAD-<run-id>` category, product, and large stock, then removes all generated users, orders, reservations, inventory rows, catalog rows, and Redis keys.
 
 ```bash
-curl -X POST http://localhost:8000/api/v1/auth/token \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  -d 'username=admin@example.com&password=LocalAdmin123!'
-
-curl -X POST http://localhost:8000/api/v1/categories \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'Content-Type: application/json' \
-  -d '{"name":"Books","slug":"books"}'
-```
-
-Матрица доступа:
-
-| Операция | Без токена | customer | admin |
-|---|---:|---:|---:|
-| Чтение каталога | 200 | 200 | 200 |
-| Изменение каталога | 401 | 403 | разрешено |
-| `/auth/me` | 401 | 200 | 200 |
-
-Access token действует 15 минут. Refresh tokens, logout, восстановление пароля, подтверждение email и rate limiting пока не реализованы.
-
-## Inventory и резервирование
-
-Публичное чтение остатка:
-
-```bash
-curl http://localhost:8001/api/v1/inventory/20000000-0000-0000-0000-000000000001
-```
-
-Создание и освобождение резерва с токеном customer или admin:
-
-```bash
-curl -X POST http://localhost:8001/api/v1/reservations \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'Idempotency-Key: example-reservation-1' \
-  -H 'Content-Type: application/json' \
-  -d '{"product_id":"20000000-0000-0000-0000-000000000001","quantity":2}'
-
-curl -X POST http://localhost:8001/api/v1/reservations/<RESERVATION_ID>/release \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>'
-```
-
-PostgreSQL является источником истины. Redis хранит idempotency mapping в течение 10 минут; при его недоступности reserve/replay продолжает работать через PostgreSQL, но `/ready` Inventory возвращает 503.
-
-Inventory, Orders и Identity/Catalog пока используют общий PostgreSQL-инстанс. Это позволяет оформить резерв одной транзакцией без заявления распределённых транзакций.
-
-## Orders
-
-Создание заказа из активного резерва:
-
-```bash
-curl -X POST http://localhost:8002/api/v1/orders \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>' \
-  -H 'Idempotency-Key: example-order-1' \
-  -H 'Content-Type: application/json' \
-  -d '{"reservation_id":"<RESERVATION_ID>"}'
-
-curl http://localhost:8002/api/v1/orders \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>'
-
-curl -X POST http://localhost:8002/api/v1/orders/<ORDER_ID>/cancel \
-  -H 'Authorization: Bearer <ACCESS_TOKEN>'
-```
-
-Commit переводит резерв в `committed`, убирает количество из зарезервированного остатка и фиксирует цену в заказе. Повтор с тем же idempotency key не создаёт второй заказ. Отмена владельцем или admin идемпотентно возвращает количество в доступный остаток. Платежи, доставка и автоматическое истечение резервов пока не реализованы.
-
-## Web UI и Playwright
-
-Nginx раздаёт адаптивный статический UI на порту `8080` и проксирует API в рамках одного origin: Identity/Catalog через `/gateway/core`, Inventory через `/gateway/inventory`, Orders через `/gateway/orders`. CORS в API не требуется. Интерфейс поддерживает вход, публичный каталог с остатками, reserve → order, список заказов и logout. JWT хранится только в `sessionStorage`; при logout и ответе 401 он удаляется. При ошибке создания заказа после успешного резерва UI пытается освободить резерв.
-
-QA-образ основан на официальном Playwright Python `v1.63.0-noble`; Python-пакет `playwright==1.63.0` совпадает с версией образа. Один UI-suite выполняется в Chromium, Firefox и WebKit. Desktop/mobile viewport, клавиатурный вход и отсутствие необработанных JavaScript-ошибок проверяются автоматически. Screenshot, video и trace сохраняются в игнорируемый каталог `test-results/` только при падениях.
-
-## Параллельный CI
-
-Workflow `.github/workflows/qa.yml` запускается для push/pull request в `main` и вручную. Smoke, regression, contract и три UI-browser jobs используют отдельные GitHub-hosted runners и изолированные Compose-проекты. Каждый job сохраняет raw Allure results, а итоговый job собирает единый HTML artifact на 14 дней. GitHub Pages, deployment и secrets не используются.
-
-Workflow проверен локально `actionlint 1.7.12`; фактический запуск GitHub Actions пока не выполнялся, поскольку у локального репозитория нет remote и проект не публиковался.
-
-## Locust performance
-
-Locust 2.46.5 запускается из закреплённого официального образа. Профиль создаёт изолированный товар `LOAD-<run-id>` с большим остатком, распределяет 20 пользователей как 14 читающих и 6 оформляющих, а после теста удаляет пользователей, заказы, резервы, остаток, товар, категорию и Redis-ключи.
-
-Короткая проверка и основной профиль:
-
-```bash
-docker compose run --rm --build \
-  -e LOAD_RUN_ID=smoke-local -e RESULTS_DIR=/results/smoke -e MIN_REQUESTS=1 \
-  locust -f /mnt/locust/locustfile.py --headless \
-  -u 2 -r 2 -t 15s --csv /results/smoke/stats --csv-full-history \
-  --html /results/smoke/report.html --only-summary
-
 docker compose run --rm --build \
   -e LOAD_RUN_ID=main-local -e RESULTS_DIR=/results/main \
   locust -f /mnt/locust/locustfile.py --headless \
   -u 20 -r 5 -t 2m --csv /results/main/stats --csv-full-history \
   --html /results/main/report.html --only-summary
-```
 
-Аварийная идемпотентная очистка доступна отдельно:
-
-```bash
+# Idempotent recovery after an interrupted run
 docker compose run --rm --build load-cleanup
 ```
 
-Guardrails стенда: failure ratio ≤ 1%, aggregate p95 ≤ 1500 мс, read-only p95 ≤ 1000 мс, не менее 500 запросов, отсутствие HTTP 5xx и исключений Locust. HTML, CSV, JSON summary и параметры сохраняются в игнорируемом `performance-results/`.
+Local guardrails are failure ratio ≤1%, aggregate p95 ≤1500 ms, read-only p95 ≤1000 ms, at least 500 requests, no HTTP 5xx, and no Locust exceptions. Reports are written to `performance-results/`.
 
 ## OWASP ZAP DAST
 
-ZAP 2.17.0 выполняет только passive Web baseline и safe OpenAPI scans (`-S`); active scan, эксплуатация и внешние адреса исключены.
+The pinned `zaproxy/zap-stable:2.17.0` image runs only passive Web baseline and safe OpenAPI mode. Active scan, authenticated DAST, exploitation, and external targets are excluded.
 
 ```bash
 docker compose run --rm zap-web
@@ -200,16 +185,74 @@ docker compose run --rm zap-check \
   security-results/inventory-api.json security-results/orders-api.json
 ```
 
-Каждый target создаёт HTML, JSON и Markdown в игнорируемом `security-results/`. Машинный triage блокирует новые Medium/High и технические ошибки; Low остаются WARN, Informational — INFO. Единственный исходный Medium от Web — отсутствие anti-CSRF token — явно классифицирован как неприменимый к bearer-аутентификации без cookie-сессии и остаётся видимым в отчёте. Это точечное обоснование, не глобальное исключение.
+Every target produces HTML, JSON, and Markdown. Unclassified Medium/High alerts, technical failures, unavailable targets, and HTTP 5xx fail the check. Low alerts remain visible as warnings. The Web anti-CSRF finding is retained with a rule-specific rationale: authentication uses a bearer token in `sessionStorage`, not a cookie-authenticated session.
 
-Отдельный `.github/workflows/nonfunctional.yml` запускается только вручную и параллельно выполняет performance и DAST в изолированных Compose-проектах. Артефакты хранятся 14 дней; secrets, Pages и deployment не используются. Workflow статически проверен, но внешний run не выполнялся.
+## One-command final audit
 
-## OpenAPI contract testing
+The audit uses a fresh Compose project, isolated PostgreSQL volume, and host ports `18000/18001/18002/18080`. It rebuilds project images without cache, runs every suite, creates Allure/Locust/ZAP artifacts, verifies database and Redis cleanup, and always removes the audit volume.
 
-Schemathesis 4.10.2 загружает OpenAPI Identity/Catalog, Inventory и Orders. Suite содержит 27 собранных проверок — по одной на операцию; каждая выполняет до 10 детерминированных Hypothesis-примеров. GET проверяются positive-данными, изменяющие операции — negative-данными. Проверяются отсутствие 5xx, Content-Type, документированные response schemas и отклонение невалидных данных.
+It intentionally requires an explicit destructive flag and a clean Git working tree:
 
-Неизвестные query-параметры разрешены генератору, поскольку текущий FastAPI-стенд их игнорирует. Проверка `status_code_conformance` пока не включена: не все доменные 401/403/404/409 перечислены в OpenAPI. Ограничения явные; server-error и response-schema проверки не отключены.
+```bash
+scripts/final-audit.sh --clean-artifacts
+```
 
-## Фактический статус
+Only the Git-ignored `allure-results/`, `allure-report/`, `test-results/`, `performance-results/`, and `security-results/` directories are cleaned.
 
-На 2026-10-05 собрано 164 содержательных теста: 7 smoke, 120 regression, 27 contract и 10 UI. Два последовательных полных Chromium-прогона дали `164 passed`; UI-suite отдельно дал по `10 passed` в Chromium, Firefox и WebKit. Основной локальный Locust-профиль выполнил 24 966 запросов при 208.38446412384073 RPS, failure ratio 0.0, median 2 мс, aggregate p95 7 мс и read-only p95 4 мс. Финальный ZAP triage: 0 блокирующих alerts, 3 WARN и 11 INFO. Это показатели конкретного локального Docker-стенда, не production SLA и не результаты реальных пользователей. Подробности — в [STATUS.md](STATUS.md).
+## Continuous integration
+
+- `.github/workflows/qa.yml` runs smoke, regression, contract, and the Chromium/Firefox/WebKit UI matrix on pushes and pull requests to `main`.
+- `.github/workflows/nonfunctional.yml` is manual-only and runs performance and DAST jobs in separate Compose projects.
+- Jobs use read-only permissions, no secrets, no deployment, no GitHub Pages, and 14-day artifacts.
+- Both workflows pass local `actionlint 1.7.12` validation.
+
+This repository has not been published and has no Git remote, so no successful GitHub Actions execution is claimed.
+
+## Verified local results
+
+Last verified on **2026-10-05** before the final clean audit:
+
+- collection: `164 tests`;
+- smoke: `7 passed`; regression: `120 passed`; contract: `27 passed`;
+- UI: `10 passed` in each of Chromium, Firefox, and WebKit;
+- two complete Chromium runs: `164 passed` each;
+- combined Allure report: `184 passed` executions (164 source tests; 10 UI tests repeated across three browsers);
+- Locust 20 users / 5 users/s / 2 min: 24,966 requests, 208.38446412384073 RPS, 0.0 failure ratio, 2 ms median, 7 ms aggregate p95, 4 ms read-only p95;
+- ZAP triage: 0 blocking alerts, 3 warnings, 11 informational alerts;
+- six healthy services and no residual test/load data or Redis idempotency keys.
+
+These values will naturally vary between machines. The raw ignored artifacts are the source of truth for a new run.
+
+## Repository structure
+
+```text
+app/                 Identity/Catalog API and shared models
+inventory_service/   Inventory and reservation API
+orders_service/      Order lifecycle API
+web/                 Static storefront and Nginx gateway
+migrations/          Alembic database migrations
+qa/api/              HTTP API tests
+qa/integration/      PostgreSQL, Redis, and concurrency tests
+qa/contract/         Schemathesis property-based tests
+qa/ui/               Cross-browser Playwright tests
+qa/load/             Locust workload and cleanup
+qa/security/         ZAP policy and report checker
+scripts/             Allure and final-audit tooling
+```
+
+Long-term project requirements, implementation stages, and verified history are recorded in [SPEC.md](SPEC.md), [PLAN.md](PLAN.md), and [STATUS.md](STATUS.md).
+
+## Limitations
+
+- This is a local learning and portfolio stand, not a production service.
+- It has no measured availability, production traffic, customers, or business impact.
+- Services share PostgreSQL; distributed transactions and independent service databases are not claimed.
+- OpenAPI does not yet enumerate every domain-specific 401/403/404/409 response, so Schemathesis `status_code_conformance` is explicitly deferred.
+- Unknown query parameters are ignored by the current FastAPI application and treated accordingly by contract generation.
+- DAST is passive/safe and unauthenticated; it is not a penetration test.
+- Performance thresholds are local stability guardrails, not capacity claims.
+- GitHub Actions configuration is statically validated but not externally executed.
+
+## License
+
+Released under the [MIT License](LICENSE).
